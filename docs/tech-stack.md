@@ -8,16 +8,11 @@ This document defines the technology stack for HomeBase based on the current PRD
 - **UI Components:** shadcn/ui
 - **Design System Notes:** See `docs/design-system.md`
 
-## Backend
-- **Style:** Node + REST
-- **Hosting Model:** Self-hosted, single household instance
-
 ## Database
 - **Primary Store:** Postgres
 
 ## Authentication
 - **Mode:** Single-user local password
-- **Session:** Cookie-based sessions
 
 ## AI / Agent Runtime
 - **Mode:** Pluggable
