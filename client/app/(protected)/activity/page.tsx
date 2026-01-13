@@ -19,6 +19,10 @@ const actionLabel = (action: string) => {
       return { label: "Rejected", variant: "secondary" as const };
     case "proposal.failed":
       return { label: "Failed", variant: "destructive" as const };
+    case "agent.run":
+      return { label: "Agent Run", variant: "default" as const };
+    case "agent.run.failed":
+      return { label: "Agent Failed", variant: "destructive" as const };
     default:
       return { label: action, variant: "outline" as const };
   }
@@ -57,7 +61,12 @@ export default async function ActivityPage({
           <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Agent Activity</h1>
           <p className="text-muted-foreground">Review proposal decisions and agent runs.</p>
         </div>
-        <Badge variant="outline">{logs.length} entries</Badge>
+        <div className="flex items-center gap-2">
+          <Link href="/activity/metrics" className="nav-pill">
+            Metrics
+          </Link>
+          <Badge variant="outline">{logs.length} entries</Badge>
+        </div>
       </div>
 
       <Card className="bg-card/80">
@@ -77,6 +86,12 @@ export default async function ActivityPage({
           </Link>
           <Link href="/activity?action=proposal.failed" className={`nav-pill ${action === "proposal.failed" ? "bg-secondary/70" : ""}`}>
             Failed
+          </Link>
+          <Link href="/activity?action=agent.run" className={`nav-pill ${action === "agent.run" ? "bg-secondary/70" : ""}`}>
+            Agent runs
+          </Link>
+          <Link href="/activity?action=agent.run.failed" className={`nav-pill ${action === "agent.run.failed" ? "bg-secondary/70" : ""}`}>
+            Agent failed
           </Link>
           <form className="ml-auto">
             <Input

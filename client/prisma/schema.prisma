@@ -18,21 +18,61 @@ model AppConfig {
   setupComplete Boolean  @default(false)
   passwordHash  String?
   passwordSalt  String?
+  llmProvider   String?  @default("ollama")
+  llmBaseUrl    String?  @default("http://localhost:11434")
+  llmApiKey     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model AgentConfig {
+  id        String   @id @default(uuid())
+  agentId   String   @unique
+  model     String
+  prompt    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model InventoryItem {
   id          String   @id @default(uuid())
   name        String
-  category    String?
-  location    String?
-  tags        String[]
+  categories  String[] @default([])
+  rooms       Room[]
+  tags        Tag[]
+  attachments InventoryAttachment[]
   photoUrl    String?
   description String?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model InventoryAttachment {
+  id        String        @id @default(uuid())
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  kind      String        // photo | video
+  url       String
+  order     Int
+  createdAt DateTime      @default(now())
+}
+
+model Room {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  items     InventoryItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model Tag {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  items     InventoryItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 }
 
 model GroceryList {

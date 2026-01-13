@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isInventoryComplete, normalizeField } from "../lib/inventory";
+import { isInventoryComplete, normalizeCategories, normalizeField, toTitleCase } from "../lib/inventory";
 
-const item = (category: string | null, location: string | null) => ({
+const item = (categories: string[], rooms: string[]) => ({
   name: "Sample",
-  category,
-  location,
+  categories,
+  rooms,
 });
 
 describe("inventory helpers", () => {
@@ -13,9 +13,14 @@ describe("inventory helpers", () => {
     expect(normalizeField("  Kitchen  ", "Unknown")).toBe("Kitchen");
   });
 
-  it("detects completeness based on category and location", () => {
-    expect(isInventoryComplete(item("Uncategorized", "Kitchen"))).toBe(false);
-    expect(isInventoryComplete(item("Appliances", "Unknown"))).toBe(false);
-    expect(isInventoryComplete(item("Appliances", "Kitchen"))).toBe(true);
+  it("title-cases categories", () => {
+    expect(toTitleCase("living room")).toBe("Living Room");
+    expect(normalizeCategories(["kitchen", "  tools "])).toEqual(["Kitchen", "Tools"]);
+  });
+
+  it("detects completeness based on categories and rooms", () => {
+    expect(isInventoryComplete(item([], ["Kitchen"]))).toBe(false);
+    expect(isInventoryComplete(item(["Appliances"], []))).toBe(false);
+    expect(isInventoryComplete(item(["Appliances"], ["Kitchen"]))).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ type UpdateModel = {
 
 const ENTITY_FIELDS: Record<string, { allowed: string[]; requiredOnCreate: string[] }> = {
     InventoryItem: {
-        allowed: ["name", "category", "location", "tags", "photoUrl", "description"],
+        allowed: ["name", "categories", "photoUrl", "description"],
         requiredOnCreate: ["name"],
     },
     GroceryItem: {
@@ -21,6 +21,14 @@ const ENTITY_FIELDS: Record<string, { allowed: string[]; requiredOnCreate: strin
     MealPlanItem: {
         allowed: ["date", "mealType", "notes", "recipeId", "planId"],
         requiredOnCreate: ["date", "mealType", "planId"],
+    },
+    Recipe: {
+        allowed: ["name", "description", "instructions", "sourceUrl", "imageUrl"],
+        requiredOnCreate: ["name"],
+    },
+    RecipeIngredient: {
+        allowed: ["name", "quantity", "unit", "recipeId"],
+        requiredOnCreate: ["name", "recipeId"],
     },
 };
 
@@ -181,6 +189,8 @@ export async function approveSelectedChanges(proposalId: string, changeIds: stri
                 if (change.entityType === 'InventoryItem') model = tx.inventoryItem as unknown as UpdateModel;
                 if (change.entityType === 'GroceryItem') model = tx.groceryItem as unknown as UpdateModel;
                 if (change.entityType === 'MealPlanItem') model = tx.mealPlanItem as unknown as UpdateModel;
+                if (change.entityType === 'Recipe') model = tx.recipe as unknown as UpdateModel;
+                if (change.entityType === 'RecipeIngredient') model = tx.recipeIngredient as unknown as UpdateModel;
 
                 if (!model) {
                     throw new Error(`VALIDATION: Unsupported entity type: ${change.entityType}`);

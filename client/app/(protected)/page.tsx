@@ -100,7 +100,7 @@ export default async function Home() {
         <FeatureCard
           href="/inventory"
           title="Inventory"
-          description="Manage your items, locations, and assets."
+          description="Manage items with rooms, categories, and tags."
           icon={Package}
         />
         <FeatureCard

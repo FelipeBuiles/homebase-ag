@@ -1,24 +1,29 @@
 import { Job } from "bullmq";
 import { setupWorker } from "../lib/queue";
+import { runAgentPrompt } from "../lib/ai";
 
 console.log("Starting Recipe Parser Agent...");
 
 const processJob = async (job: Job) => {
-    const { recipeId, sourceUrl } = job.data;
+    const { recipeId, sourceUrl, content } = job.data;
     console.log(`Processing recipe: ${recipeId} (${sourceUrl || 'No URL'})`);
 
-    if (!sourceUrl) {
-        console.log("No source URL provided. Skipping parsing.");
+    if (!content) {
+        console.log("No recipe content provided. Skipping parsing.");
         return;
     }
 
-    // MVP: Just log that we would parse it
-    // Future: Fetch URL, use Cheerio/Puppeteer or LLM to extract JSON-LD recipe data
-    console.log(`[STUB] Fetching content from ${sourceUrl}...`);
-    console.log(`[STUB] Extracting ingredients and instructions...`);
+    const { data } = await runAgentPrompt(
+        "agent_recipe_parser",
+        `Recipe content:\n${content}`
+    );
 
-    // Example of what we might do:
-    // await prisma.proposal.create({ ... })
+    if (!data) {
+        console.log("Failed to parse recipe content.");
+        return;
+    }
+
+    console.log("Parsed recipe data:", data);
 };
 
 const worker = setupWorker("recipe-parser", processJob);

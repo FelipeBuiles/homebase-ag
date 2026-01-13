@@ -1,6 +1,7 @@
 import { Job } from "bullmq";
 import prisma from "../lib/prisma";
 import { setupWorker } from "../lib/queue";
+import { runAgentPrompt } from "../lib/ai";
 
 console.log("Starting Expiration Agent...");
 
@@ -24,8 +25,21 @@ const processJob = async (_job: Job) => {
     console.log(`Found ${expiringItems.length} expiring items.`);
 
     for (const item of expiringItems) {
-        // Check if we already have a proposal for this
-        // (Skipping duplicate check for MVP simplicity)
+        const { data, raw } = await runAgentPrompt(
+            "agent_expiration",
+            `Pantry item: ${item.name}\nExpires: ${item.expirationDate?.toISOString() ?? "unknown"}\nQuantity: ${item.quantity ?? "unknown"}`
+        );
+
+        const shouldCreate = data?.shouldCreate ?? false;
+        if (!shouldCreate) {
+            console.log(`No grocery suggestion for ${item.name}`);
+            continue;
+        }
+
+        const suggestedName = data?.name ?? item.name;
+        const quantity = data?.quantity ?? "1";
+        const confidence = data?.confidence ?? 0.7;
+        const rationale = data?.rationale ?? `Item expires on ${item.expirationDate?.toLocaleDateString()}`;
 
         await prisma.proposal.create({
             data: {
@@ -34,15 +48,16 @@ const processJob = async (_job: Job) => {
                 changes: {
                     create: {
                         entityType: "GroceryItem",
-                        entityId: "new", // Placeholder, creating new
-                        confidence: 0.9,
-                        rationale: `Item expires on ${item.expirationDate?.toLocaleDateString()}`,
+                        entityId: "new",
+                        confidence,
+                        rationale,
                         diff: [
-                            { op: "add", path: "/name", value: item.name },
-                            { op: "add", path: "/quantity", value: "1" } // Default quantity
+                            { op: "add", path: "/name", value: suggestedName },
+                            { op: "add", path: "/quantity", value: quantity }
                         ],
                         before: {},
-                        after: { name: item.name, quantity: "1" }
+                        after: { name: suggestedName, quantity },
+                        metadata: { rawResponse: raw }
                     }
                 }
             }

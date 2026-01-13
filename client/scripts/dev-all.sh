@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PIDS=()
+REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
+REDIS_PORT="${REDIS_PORT:-6379}"
 
 cleanup() {
   for pid in "${PIDS[@]:-}"; do
@@ -23,6 +25,16 @@ start() {
 }
 
 cd "$ROOT_DIR"
+
+if command -v nc >/dev/null 2>&1; then
+  if ! nc -z "$REDIS_HOST" "$REDIS_PORT"; then
+    echo "Redis is not reachable at ${REDIS_HOST}:${REDIS_PORT}."
+    echo "Start Redis (or docker compose) before running agents."
+    exit 1
+  fi
+else
+  echo "Warning: nc not found; skipping Redis connectivity check."
+fi
 
 start "Next.js dev server" npm run dev
 start "Enrichment agent" npm run agent:enrichment

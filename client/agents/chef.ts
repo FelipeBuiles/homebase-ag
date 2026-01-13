@@ -1,6 +1,7 @@
 import { Job } from "bullmq";
 import prisma from "../lib/prisma";
 import { setupWorker } from "../lib/queue";
+import { runAgentPrompt } from "../lib/ai";
 
 console.log("Starting Chef Agent...");
 
@@ -39,71 +40,90 @@ const processJob = async (_job: Job) => {
         include: { items: true }
     });
 
-    // 3. For each expiring item, try to find a recipe and an empty slot
-    // This is a naive heuristic for the MVP.
-    for (const item of expiringItems) {
-        // Find a recipe that uses this ingredient (text search on ingredients - naive)
-        // Note: We don't have ingredient text search easily in prisma without full text search feature enabled or raw query
-        // We will skip the recipe lookup for now and just suggest a "Generic" meal for the slot to prove the agent works.
+    if (plans.length === 0) {
+        console.log("No meal plans available.");
+        return;
+    }
 
-        // Find an empty slot in the first available plan
-        for (const plan of plans) {
-            // Check for empty slots (e.g. Dinner tonite/tomorrow)
-            // Simple logic: Find a date in the plan that has no "Dinner"
+    const openSlots = plans.flatMap((plan) => {
+        const slots: { planId: string; date: string; mealType: "Breakfast" | "Lunch" | "Dinner" }[] = [];
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(plan.startDate);
+            d.setDate(plan.startDate.getDate() + i);
+            if (d < new Date()) continue;
 
-            for (let i = 0; i < 7; i++) {
-                const d = new Date(plan.startDate);
-                d.setDate(plan.startDate.getDate() + i);
-
-                // If date is in the past, skip
-                if (d < new Date()) continue;
-
-                const hasDinner = plan.items.some(slot =>
-                    new Date(slot.date).getDate() === d.getDate() &&
-                    slot.mealType === "Dinner"
+            (["Breakfast", "Lunch", "Dinner"] as const).forEach((mealType) => {
+                const exists = plan.items.some(
+                    (slot) =>
+                        new Date(slot.date).toDateString() === d.toDateString() &&
+                        slot.mealType === mealType
                 );
-
-                if (!hasDinner) {
-                    // Evaluate confidence: High if item is expiring very soon
-                    const confidence = 0.85;
-
-                    await prisma.proposal.create({
-                        data: {
-                            agentId: "agent_chef",
-                            summary: `Chef's Suggestion: Use up '${item.name}' for Dinner on ${d.toLocaleDateString()}`,
-                            changes: {
-                                create: {
-                                    entityType: "MealPlanItem",
-                                    entityId: "new",
-                                    confidence: confidence,
-                                    rationale: `'${item.name}' expires on ${item.expirationDate?.toLocaleDateString()}. Cook it on ${d.toLocaleDateString()}!`,
-                                    diff: [
-                                        { op: "add", path: "/planId", value: plan.id },
-                                        { op: "add", path: "/date", value: d.toISOString() },
-                                        { op: "add", path: "/mealType", value: "Dinner" },
-                                        // We aren't linking a specific recipe ID here to keep it simple, 
-                                        // unless we found one. We'll just set a note?
-                                        // Schema requires recipeId is optional.
-                                        // But our UI expects a recipe? UI code: item.recipe?.name || "Custom Meal"
-                                        // We can update the UI to show notes if recipe is missing?
-                                        // Actually PlanItem schema has `notes`. Let's use that.
-                                    ],
-                                    // For 'after' snapshot, we show what we'd create
-                                    after: {
-                                        planId: plan.id,
-                                        date: d.toISOString(),
-                                        mealType: "Dinner",
-                                        notes: `Use ${item.name}`
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    console.log(`Proposed dinner for ${d.toDateString()} using ${item.name}`);
-                    break; // One proposal per item is enough for now
+                if (!exists) {
+                    slots.push({ planId: plan.id, date: d.toISOString(), mealType });
                 }
-            }
+            });
         }
+        return slots;
+    });
+
+    if (openSlots.length === 0) {
+        console.log("No open meal plan slots.");
+        return;
+    }
+
+    const { data, raw } = await runAgentPrompt(
+        "agent_chef",
+        `Expiring pantry items: ${expiringItems.map((item) => item.name).join(", ")}\nOpen slots: ${JSON.stringify(openSlots)}`
+    );
+
+    const suggestions = data?.suggestions ?? [];
+    for (const suggestion of suggestions) {
+        if (
+            typeof suggestion?.planId !== "string" ||
+            typeof suggestion?.date !== "string" ||
+            typeof suggestion?.mealType !== "string"
+        ) {
+            continue;
+        }
+
+        const matchingSlot = openSlots.find(
+            (slot) =>
+                slot.planId === suggestion.planId &&
+                slot.date === suggestion.date &&
+                slot.mealType === suggestion.mealType
+        );
+        if (!matchingSlot) continue;
+
+        const confidence = suggestion?.confidence ?? 0.7;
+        const rationale = suggestion?.rationale ?? "AI meal suggestion.";
+        const notes = suggestion?.notes ?? "";
+
+        await prisma.proposal.create({
+            data: {
+                agentId: "agent_chef",
+                summary: `Chef's Suggestion: ${notes || "Meal suggestion"} on ${new Date(suggestion.date).toLocaleDateString()}`,
+                changes: {
+                    create: {
+                        entityType: "MealPlanItem",
+                        entityId: "new",
+                        confidence,
+                        rationale,
+                        diff: [
+                            { op: "add", path: "/planId", value: suggestion.planId },
+                            { op: "add", path: "/date", value: suggestion.date },
+                            { op: "add", path: "/mealType", value: suggestion.mealType },
+                        ],
+                        after: {
+                            planId: suggestion.planId,
+                            date: suggestion.date,
+                            mealType: suggestion.mealType,
+                            notes,
+                        },
+                        metadata: { rawResponse: raw },
+                    },
+                },
+            },
+        });
     }
 };
 

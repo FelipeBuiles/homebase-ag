@@ -1,6 +1,7 @@
 import { Job } from "bullmq";
 import prisma from "../lib/prisma";
 import { setupWorker } from "../lib/queue";
+import { runAgentPrompt } from "../lib/ai";
 
 console.log("Starting Normalization Agent...");
 
@@ -8,20 +9,16 @@ const processJob = async (job: Job) => {
     const { itemId, name } = job.data;
     console.log(`Processing grocery item: ${itemId} (${name})`);
 
-    // Simple normalization logic for MVP
-    // In a real app, this would use an LLM or a fuzzy match database
-    let normalizedName = name.trim();
+    const { data, raw } = await runAgentPrompt(
+        "agent_normalization",
+        `Grocery item name: ${name}`
+    );
 
-    // Capitalize first letter
-    normalizedName = normalizedName.charAt(0).toUpperCase() + normalizedName.slice(1);
+    const normalizedName = data?.normalizedName?.trim() ?? "";
+    const confidence = data?.confidence ?? 0.5;
+    const rationale = data?.rationale ?? "AI normalization suggestion.";
 
-    // Plural to singular (very naive)
-    if (normalizedName.endsWith("s") && !normalizedName.endsWith("ss")) {
-        normalizedName = normalizedName.slice(0, -1);
-    }
-
-    // If no change, standard is good
-    if (normalizedName === name) {
+    if (!normalizedName || normalizedName === name) {
         console.log(`No normalization needed for '${name}'`);
         return;
     }
@@ -40,11 +37,12 @@ const processJob = async (job: Job) => {
                 create: {
                     entityType: "GroceryItem",
                     entityId: itemId,
-                    confidence: 0.85,
-                    rationale: `Standardizing name to singular/capitalized form.`,
+                    confidence,
+                    rationale,
                     diff: [{ op: "replace", path: "/name", value: normalizedName }],
                     before: { name },
                     after: { name: normalizedName },
+                    metadata: { rawResponse: raw },
                 }
             }
         }

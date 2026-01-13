@@ -237,7 +237,7 @@ Each slice is intentionally scoped so it can be fed directly into a PRD generato
 ---
 
 ## Suggested PRD Generation Order
-
+++
 1. F1 → F2 → F3  
 2. I1 → I2 → I4 → I5  
 3. G1 → G2  

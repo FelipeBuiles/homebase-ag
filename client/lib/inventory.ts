@@ -3,14 +3,35 @@ export const normalizeField = (value: FormDataEntryValue | null, fallback: strin
   return trimmed.length > 0 ? trimmed : fallback;
 };
 
-export const normalizeCategory = (value: FormDataEntryValue | null) => {
-  const trimmed = (value ?? "").toString().trim();
-  return trimmed.length > 0 ? trimmed : null;
+export const toTitleCase = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed
+    .toLowerCase()
+    .replace(/(^|[\s/\-])\w/g, (match) => match.toUpperCase());
 };
 
-export const normalizeLocation = (value: FormDataEntryValue | null) => {
+export const normalizeCategory = (value: FormDataEntryValue | null) => {
   const trimmed = (value ?? "").toString().trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (!trimmed) return null;
+  return toTitleCase(trimmed);
+};
+
+export const normalizeCategories = (values: FormDataEntryValue[]) =>
+  values
+    .map((value) => toTitleCase(value.toString()))
+    .filter((value) => value.length > 0);
+
+export const normalizeRoomName = (value: FormDataEntryValue | null) => {
+  const trimmed = (value ?? "").toString().trim();
+  if (!trimmed) return null;
+  return toTitleCase(trimmed);
+};
+
+export const normalizeTagName = (value: FormDataEntryValue | null) => {
+  const trimmed = (value ?? "").toString().trim();
+  if (!trimmed) return null;
+  return toTitleCase(trimmed);
 };
 
 export const DEFAULT_INVENTORY_CATEGORIES = [
@@ -36,11 +57,11 @@ export const DEFAULT_INVENTORY_CATEGORIES = [
   "Miscellaneous",
 ];
 
-export const isInventoryComplete = (item: { name?: string | null; category?: string | null; location?: string | null }) => {
+export const isInventoryComplete = (item: { name?: string | null; categories?: string[] | null; rooms?: unknown[] | null }) => {
   if (!item.name) return false;
-  const category = item.category ?? "";
-  const location = item.location ?? "";
-  if (!category || category.toLowerCase() === "uncategorized") return false;
-  if (!location || location.toLowerCase() === "unknown") return false;
+  const categories = item.categories ?? [];
+  const rooms = item.rooms ?? [];
+  if (categories.length === 0) return false;
+  if (rooms.length === 0) return false;
   return true;
 };
