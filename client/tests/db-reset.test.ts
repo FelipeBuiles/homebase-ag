@@ -15,4 +15,20 @@ describe("resetDb", () => {
     const nextCount = await prisma.room.count();
     expect(nextCount).toBe(0);
   });
+
+  it("supports provider overrides", async () => {
+    const config = await prisma.agentConfig.create({
+      data: {
+        agentId: "agent_enrichment",
+        model: "llama3.1",
+        visionModel: "llama3.1",
+        prompt: "x",
+        systemPrompt: "x",
+        userPrompt: "",
+        providerOverride: "openrouter",
+        enabled: true,
+      },
+    });
+    expect(config.providerOverride).toBe("openrouter");
+  });
 });

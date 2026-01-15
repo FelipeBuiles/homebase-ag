@@ -33,6 +33,7 @@ model AgentConfig {
   systemPrompt String?
   userPrompt   String?
   prompt    String
+  providerOverride String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
