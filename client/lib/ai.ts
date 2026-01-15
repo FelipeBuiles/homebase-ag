@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import prisma from "@/lib/prisma";
 import { AGENT_PROMPTS, type AgentId } from "@/lib/agent-prompts";
-import { getProviderClient, resolveProviderConfig } from "@/lib/llm-providers";
+import { getProviderClient, resolveEffectiveConfig, resolveProviderConfig } from "@/lib/llm-providers";
 
 const getPromptConfig = (agentId: AgentId) =>
   AGENT_PROMPTS.find((agent) => agent.agentId === agentId);
@@ -173,12 +173,28 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
   }
 
   const appConfig = await prisma.appConfig.findFirst();
-  const modelName = config.model || getPromptConfig(agentId)?.defaultModel || "llama3.1";
+  const effectiveConfig = resolveEffectiveConfig({
+    global: {
+      provider: appConfig?.llmProvider,
+      model: appConfig?.llmModel,
+      visionModel: appConfig?.llmVisionModel,
+    },
+    agent: config
+      ? {
+          overrideEnabled: config.overrideEnabled,
+          providerOverride: config.providerOverride,
+          modelOverride: config.modelOverride,
+          visionModelOverride: config.visionModelOverride,
+        }
+      : null,
+  });
+  const modelName =
+    effectiveConfig.model || config.model || getPromptConfig(agentId)?.defaultModel || "llama3.1";
   const { provider, baseUrl, apiKey } = resolveProviderConfig({
-    globalProvider: appConfig?.llmProvider,
+    globalProvider: effectiveConfig.provider,
     baseUrl: appConfig?.llmBaseUrl,
     apiKey: appConfig?.llmApiKey,
-    agentProviderOverride: (config as { providerOverride?: string | null }).providerOverride,
+    agentProviderOverride: null,
   });
   const providerClient = getProviderClient({ provider, baseUrl, apiKey });
   const truncate = (value: string, limit = 600) =>

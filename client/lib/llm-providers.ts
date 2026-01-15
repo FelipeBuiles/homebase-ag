@@ -29,6 +29,20 @@ type ProviderClientInput = {
   apiKey?: string;
 };
 
+type EffectiveConfigInput = {
+  global: {
+    provider?: string | null;
+    model?: string | null;
+    visionModel?: string | null;
+  };
+  agent: {
+    overrideEnabled?: boolean | null;
+    providerOverride?: string | null;
+    modelOverride?: string | null;
+    visionModelOverride?: string | null;
+  } | null;
+};
+
 export const normalizeProvider = (value?: string | null): ProviderKind => {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return "ollama";
@@ -75,4 +89,23 @@ export const getProviderClient = ({ provider, baseUrl, apiKey }: ProviderClientI
     case "custom":
       return createOpenAI({ apiKey, baseURL: baseUrl });
   }
+};
+
+export const resolveEffectiveConfig = ({ global, agent }: EffectiveConfigInput) => {
+  const shouldOverride = Boolean(agent?.overrideEnabled);
+  const provider = shouldOverride
+    ? normalizeProvider(agent?.providerOverride || global.provider)
+    : normalizeProvider(global.provider);
+  const model = shouldOverride
+    ? agent?.modelOverride?.trim() || global.model?.trim()
+    : global.model?.trim();
+  const visionModel = shouldOverride
+    ? agent?.visionModelOverride?.trim() || global.visionModel?.trim()
+    : global.visionModel?.trim();
+
+  return {
+    provider,
+    model,
+    visionModel,
+  };
 };

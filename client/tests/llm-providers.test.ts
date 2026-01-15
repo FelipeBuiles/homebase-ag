@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getProviderClient, normalizeProvider, resolveProviderConfig } from "../lib/llm-providers";
+import { getProviderClient, normalizeProvider, resolveEffectiveConfig, resolveProviderConfig } from "../lib/llm-providers";
 
 describe("llm provider resolution", () => {
   it("normalizes known providers", () => {
@@ -28,6 +28,26 @@ describe("provider factory", () => {
   it("returns a model factory", () => {
     const client = getProviderClient({ provider: "ollama", baseUrl: "http://localhost:11434" });
     expect(typeof client).toBe("function");
+  });
+});
+
+describe("effective config resolution", () => {
+  it("prefers agent overrides when enabled", () => {
+    const resolved = resolveEffectiveConfig({
+      global: {
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        visionModel: "gpt-4.1-mini",
+      },
+      agent: {
+        overrideEnabled: true,
+        providerOverride: "openrouter",
+        modelOverride: "openrouter/gpt-4o-mini",
+        visionModelOverride: "openrouter/gpt-4o-mini",
+      },
+    });
+    expect(resolved.model).toBe("openrouter/gpt-4o-mini");
+    expect(resolved.provider).toBe("openrouter");
   });
 });
 

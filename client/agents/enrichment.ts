@@ -2,6 +2,7 @@ import { setupWorker } from "../lib/queue";
 import prisma from "../lib/prisma";
 import { Job } from "bullmq";
 import { getAgentConfig, runAgentPrompt } from "../lib/ai";
+import { resolveEffectiveConfig } from "../lib/llm-providers";
 import { DEFAULT_INVENTORY_CATEGORIES, normalizeTagName, toTitleCase } from "../lib/inventory";
 import { deriveNameSuggestion } from "../lib/enrichment";
 import { resolvePublicUploadPath } from "../lib/uploads";
@@ -130,7 +131,26 @@ setupWorker("inventory", async (job: Job) => {
         if (primaryPhoto?.url?.startsWith("/uploads/")) {
             try {
                 const config = await getAgentConfig("agent_enrichment");
-                const modelName = config?.visionModel ?? config?.model ?? "qwen3-vl:8b";
+                const appConfig = await prisma.appConfig.findFirst();
+                const effectiveConfig = resolveEffectiveConfig({
+                    global: {
+                        provider: appConfig?.llmProvider,
+                        model: appConfig?.llmModel,
+                        visionModel: appConfig?.llmVisionModel,
+                    },
+                    agent: config
+                        ? {
+                            overrideEnabled: config.overrideEnabled,
+                            providerOverride: config.providerOverride,
+                            modelOverride: config.modelOverride,
+                            visionModelOverride: config.visionModelOverride,
+                        }
+                        : null,
+                });
+                const modelName = effectiveConfig.visionModel
+                    ?? config?.visionModel
+                    ?? config?.model
+                    ?? "qwen3-vl:8b";
                 const absolutePath = resolvePublicUploadPath(primaryPhoto.url);
                 if (!absolutePath) {
                     throw new Error(`Invalid upload path: ${primaryPhoto.url}`);
