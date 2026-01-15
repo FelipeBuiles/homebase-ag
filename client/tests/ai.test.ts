@@ -19,12 +19,19 @@ describe("parseAgentResponse", () => {
   });
 
   it("parses enrichment payload", () => {
-    const raw = `{"categories":["Kitchen","Tools"],"confidence":0.7}`;
+    const raw = `{"categories":["Kitchen","Tools"],"rooms":["Garage"],"tags":["Power Tools"]}`;
     const result = parseAgentResponse("agent_enrichment", raw);
     expect(result).toEqual({
       categories: ["Kitchen", "Tools"],
-      confidence: 0.7,
-      rationale: undefined,
+      rooms: ["Garage"],
+      tags: ["Power Tools"],
+      name: null,
+      brand: null,
+      model: null,
+      condition: null,
+      serial: null,
+      confidenceByField: undefined,
+      rationaleByField: undefined,
     });
   });
 

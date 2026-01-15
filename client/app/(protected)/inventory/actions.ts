@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DEFAULT_INVENTORY_CATEGORIES, normalizeCategories, normalizeRoomName, normalizeTagName } from "@/lib/inventory";
 import { getAttachmentKind } from "@/lib/attachments";
+import { resolvePublicUploadPath } from "@/lib/uploads";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -236,7 +237,8 @@ export async function deleteInventoryItem(itemId: string) {
     await Promise.all(
         attachments.map(async (attachment) => {
             if (!attachment.url.startsWith("/uploads/")) return;
-            const absolutePath = path.join(process.cwd(), "public", attachment.url);
+            const absolutePath = resolvePublicUploadPath(attachment.url);
+            if (!absolutePath) return;
             try {
                 await fs.unlink(absolutePath);
             } catch {
@@ -289,7 +291,8 @@ export async function deleteInventoryAttachment(itemId: string, attachmentId: st
 
     await prisma.inventoryAttachment.delete({ where: { id: attachmentId } });
     if (attachment.url.startsWith("/uploads/")) {
-        const absolutePath = path.join(process.cwd(), "public", attachment.url);
+        const absolutePath = resolvePublicUploadPath(attachment.url);
+        if (!absolutePath) return;
         try {
             await fs.unlink(absolutePath);
         } catch {

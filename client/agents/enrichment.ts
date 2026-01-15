@@ -4,9 +4,9 @@ import { Job } from "bullmq";
 import { getAgentConfig, runAgentPrompt } from "../lib/ai";
 import { DEFAULT_INVENTORY_CATEGORIES, normalizeTagName, toTitleCase } from "../lib/inventory";
 import { deriveNameSuggestion } from "../lib/enrichment";
+import { resolvePublicUploadPath } from "../lib/uploads";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
-import path from "node:path";
 
 type VisionAnalysis = {
     labels: string[];
@@ -131,7 +131,10 @@ setupWorker("inventory", async (job: Job) => {
             try {
                 const config = await getAgentConfig("agent_enrichment");
                 const modelName = config?.visionModel ?? config?.model ?? "qwen3-vl:8b";
-                const absolutePath = path.join(process.cwd(), "public", primaryPhoto.url);
+                const absolutePath = resolvePublicUploadPath(primaryPhoto.url);
+                if (!absolutePath) {
+                    throw new Error(`Invalid upload path: ${primaryPhoto.url}`);
+                }
                 const visionStart = Date.now();
                 const { analysis, raw, error } = await analyzeAttachment(absolutePath, modelName);
                 visualAnalysis = analysis;
