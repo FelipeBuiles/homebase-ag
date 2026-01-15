@@ -95,10 +95,13 @@ Rules:
   {
     agentId: "agent_recipe_parser",
     label: "Recipe Parser",
-    defaultModel: "qwen3-vl:8b",
-    defaultVisionModel: "qwen3-vl:8b",
+    defaultModel: "qwen3:8b",
+    defaultVisionModel: "qwen3:8b",
     defaultPrompt: `You extract structured recipe data.
-Return JSON only: {"name": string, "description": string, "ingredients": string[], "instructions": string[]}.
+You must respond with ONLY a raw JSON object, nothing else.
+Do not include markdown, code fences, explanations, or extra keys.
+Your entire response must be a single JSON object in this exact shape:
+{"name": "string", "description": "string", "ingredients": ["string"], "instructions": ["string"]}.
 Rules:
 - If input content is missing, return empty strings/arrays.`,
   },

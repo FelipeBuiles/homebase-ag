@@ -119,6 +119,10 @@ model Recipe {
   instructions String?  @db.Text
   sourceUrl    String?
   imageUrl     String?
+  status       String   @default("draft")
+  parsingStatus String  @default("idle")
+  parsingError String?
+  parsingUpdatedAt DateTime?
   
   ingredients  RecipeIngredient[] 
   mealPlanItems MealPlanItem[]

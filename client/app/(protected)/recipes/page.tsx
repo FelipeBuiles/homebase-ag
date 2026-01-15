@@ -1,10 +1,17 @@
 import prisma from "@/lib/prisma";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Utensils, Check } from "lucide-react";
+import { Utensils, Check } from "lucide-react";
 import Link from "next/link";
 import { assignRecipeToSlot } from "../meal-plans/actions";
 import { redirect } from "next/navigation";
+import { RecipeModal } from "./RecipeModal";
+import { PendingRecipeCard } from "./PendingRecipeCard";
+import { isRecipePending } from "@/lib/recipes-status";
+import { RecipesPolling } from "./RecipesPolling";
+import { isRecipePolling } from "@/lib/recipes-polling-status";
+import { RetryParsingButton } from "./RetryParsingButton";
+import { RecipeImage } from "./RecipeImage";
 
 async function getRecipes() {
   return await prisma.recipe.findMany({
@@ -23,6 +30,9 @@ function getSearchParam(searchParams: SearchParams, key: string): string | undef
 export default async function RecipesPage(props: { searchParams: Promise<SearchParams> }) {
   const searchParams = await props.searchParams;
   const recipes = await getRecipes();
+  const pendingIds = recipes
+    .filter((recipe) => isRecipePolling(recipe.parsingStatus))
+    .map((recipe) => recipe.id);
 
   // If selecting for a plan
   const planId = getSearchParam(searchParams, "selectForPlan");
@@ -51,11 +61,7 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
           <p className="page-subtitle">{planId ? "Select a recipe for your plan." : "Your personal cookbook."}</p>
         </div>
         <div className="page-actions">
-          <Link href="/recipes/new">
-            <Button className="gap-2">
-              <Plus size={16} /> Add Recipe
-            </Button>
-          </Link>
+          <RecipeModal />
           {!planId && (
             <Link href="/groceries" className="text-sm text-muted-foreground hover:text-primary">
               View grocery lists
@@ -65,14 +71,41 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
-        {recipes.map((recipe) => (
-          planId ? (
+        <RecipesPolling pendingIds={pendingIds} />
+        {recipes.map((recipe) =>
+          isRecipePending({
+            status: recipe.status,
+            parsingStatus: recipe.parsingStatus,
+            name: recipe.name,
+          }) ? (
+            <PendingRecipeCard
+              key={recipe.id}
+              parsingStatus={recipe.parsingStatus}
+              actions={
+                planId ? null : (
+                  <>
+                    <Button asChild size="sm">
+                      <Link href={`/recipes/${recipe.id}`}>Open</Link>
+                    </Button>
+                    {recipe.parsingStatus === "error" && (
+                      <RetryParsingButton recipeId={recipe.id} />
+                    )}
+                  </>
+                )
+              }
+            />
+          ) : planId ? (
               <form key={recipe.id} action={handleSelect.bind(null, recipe.id)}>
                    <button className="w-full text-left">
                     <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer group relative">
                         <CardHeader>
-                            <CardTitle className="group-hover:text-primary transition-colors">{recipe.name}</CardTitle>
-                            <CardDescription className="line-clamp-2">{recipe.description || "No description"}</CardDescription>
+                            <div className="flex gap-4">
+                                <RecipeImage imageUrl={recipe.imageUrl} title={recipe.name} />
+                                <div className="min-w-0 space-y-1">
+                                  <CardTitle className="group-hover:text-primary transition-colors">{recipe.name}</CardTitle>
+                                  <CardDescription className="line-clamp-2">{recipe.description || "No description"}</CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -90,8 +123,13 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
             <Link href={`/recipes/${recipe.id}`} key={recipe.id}>
                 <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer group">
                 <CardHeader>
-                    <CardTitle className="group-hover:text-primary transition-colors">{recipe.name}</CardTitle>
-                    <CardDescription className="line-clamp-2">{recipe.description || "No description"}</CardDescription>
+                    <div className="flex gap-4">
+                      <RecipeImage imageUrl={recipe.imageUrl} title={recipe.name} />
+                      <div className="min-w-0 space-y-1">
+                        <CardTitle className="group-hover:text-primary transition-colors">{recipe.name}</CardTitle>
+                        <CardDescription className="line-clamp-2">{recipe.description || "No description"}</CardDescription>
+                      </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -102,18 +140,14 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
                 </Card>
             </Link>
           )
-        ))}
+        )}
         {recipes.length === 0 && (
           planId ? (
             <Card className="col-span-full border-dashed">
               <CardContent className="py-10 text-center text-muted-foreground space-y-3">
                 <p className="text-lg text-foreground">No recipes yet</p>
                 <p className="text-sm text-muted-foreground">Add a recipe to start building your plan.</p>
-                <Link href="/recipes/new">
-                  <Button size="sm" className="gap-2">
-                    <Plus size={14} /> Add recipe
-                  </Button>
-                </Link>
+                <RecipeModal />
               </CardContent>
             </Card>
           ) : (
@@ -125,9 +159,7 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
                     <CardDescription>{template.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <Link href="/recipes/new" className="text-sm text-primary hover:underline">
-                      Start with this template
-                    </Link>
+                    <RecipeModal />
                   </CardContent>
                 </Card>
               ))}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 const dmSans = DM_Sans({
   variable: "--font-body",
@@ -28,6 +29,7 @@ export default function RootLayout({
         className={`${dmSans.variable} ${fraunces.variable} antialiased bg-background text-foreground`}
       >
         {children}
+        <Toaster />
       </body>
     </html>
   );

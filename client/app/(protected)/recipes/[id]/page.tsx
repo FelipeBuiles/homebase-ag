@@ -1,10 +1,16 @@
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteRecipe } from "../actions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RecipeEditor } from "../RecipeEditor";
+import { PendingRecipeCard } from "../PendingRecipeCard";
+import { isRecipePending } from "@/lib/recipes-status";
+import { RecipesPolling } from "../RecipesPolling";
+import { isRecipePolling } from "@/lib/recipes-polling-status";
+import { RetryParsingButton } from "../RetryParsingButton";
+import { RecipeImage } from "../RecipeImage";
 
 async function getRecipe(id: string) {
     try {
@@ -21,6 +27,11 @@ async function getRecipe(id: string) {
 export default async function RecipeDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;  
   const recipe = await getRecipe(params.id);
+  const isPending = isRecipePending({
+    status: recipe?.status,
+    parsingStatus: recipe?.parsingStatus,
+    name: recipe?.name,
+  });
 
   if (!recipe) return notFound();
 
@@ -31,8 +42,12 @@ export default async function RecipeDetailPage(props: { params: Promise<{ id: st
           <Link href="/recipes" className="page-eyebrow flex items-center gap-2">
             <ArrowLeft size={14} /> Back to Recipes
           </Link>
-          <h1 className="page-title">{recipe.name}</h1>
-          <p className="page-subtitle">Recipe details and instructions.</p>
+          <h1 className="page-title">
+            {recipe.name?.trim() ? recipe.name : "Recipe pending"}
+          </h1>
+          <p className="page-subtitle">
+            {isPending ? "We are still parsing this recipe." : "Recipe details and instructions."}
+          </p>
         </div>
         <div className="page-actions">
           <form action={deleteRecipe.bind(null, recipe.id)}>
@@ -43,46 +58,32 @@ export default async function RecipeDetailPage(props: { params: Promise<{ id: st
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Main Content */}
-        <div className="md:col-span-2 space-y-8">
-            <div>
-                {recipe.sourceUrl && (
-                    <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
-                        <ExternalLink size={14} /> View Source
-                    </a>
-                )}
-                {recipe.description && <p className="text-lg text-muted-foreground mt-4">{recipe.description}</p>}
-            </div>
-
-            <div>
-                <h3 className="text-xl font-bold mb-4 border-b pb-2">Instructions</h3>
-                <div className="prose dark:prose-invert">
-                    <p className="whitespace-pre-wrap leading-relaxed">{recipe.instructions || "No instructions provided."}</p>
-                </div>
-            </div>
+      {!isPending && (
+        <div className="mb-8">
+          <RecipeImage
+            imageUrl={recipe.imageUrl}
+            title={recipe.name?.trim() ? recipe.name : "Recipe"}
+            variant="hero"
+          />
         </div>
+      )}
 
-        {/* Sidebar / Ingredients */}
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-lg">Ingredients ({recipe.ingredients.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {recipe.ingredients.map(ing => (
-                <li key={ing.id} className="flex items-start gap-2 text-sm border-b border-border/50 pb-2 last:border-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                  <span>
-                    {ing.quantity && <span className="font-semibold">{ing.quantity} {ing.unit} </span>}
-                    {ing.name}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+      {isPending ? (
+        <div className="max-w-2xl space-y-4">
+          <RecipesPolling pendingIds={isRecipePolling(recipe.parsingStatus) ? [recipe.id] : []} />
+          <PendingRecipeCard
+            parsingStatus={recipe.parsingStatus}
+            variant="detail"
+            actions={
+              recipe.parsingStatus === "error" && recipe.sourceUrl ? (
+                <RetryParsingButton recipeId={recipe.id} />
+              ) : null
+            }
+          />
+        </div>
+      ) : (
+        <RecipeEditor recipe={recipe} />
+      )}
     </div>
   );
 }
