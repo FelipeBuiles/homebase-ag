@@ -1,7 +1,7 @@
 import { generateText } from "ai";
-import { createOllama } from "ai-sdk-ollama";
 import prisma from "@/lib/prisma";
 import { AGENT_PROMPTS, type AgentId } from "@/lib/agent-prompts";
+import { getProviderClient, resolveProviderConfig } from "@/lib/llm-providers";
 
 const getPromptConfig = (agentId: AgentId) =>
   AGENT_PROMPTS.find((agent) => agent.agentId === agentId);
@@ -173,10 +173,14 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
   }
 
   const appConfig = await prisma.appConfig.findFirst();
-  const baseURL = appConfig?.llmBaseUrl ?? "http://localhost:11434";
-  const apiKey = appConfig?.llmApiKey ?? undefined;
   const modelName = config.model || getPromptConfig(agentId)?.defaultModel || "llama3.1";
-  const ollama = createOllama({ baseURL, apiKey });
+  const { provider, baseUrl, apiKey } = resolveProviderConfig({
+    globalProvider: appConfig?.llmProvider,
+    baseUrl: appConfig?.llmBaseUrl,
+    apiKey: appConfig?.llmApiKey,
+    agentProviderOverride: (config as { providerOverride?: string | null }).providerOverride,
+  });
+  const providerClient = getProviderClient({ provider, baseUrl, apiKey });
   const truncate = (value: string, limit = 600) =>
     value.length > limit ? `${value.slice(0, limit)}…` : value;
 
@@ -193,7 +197,7 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
   const start = Date.now();
   try {
     const response = await generateText({
-      model: ollama(modelName),
+      model: providerClient(modelName),
       prompt,
     });
 
@@ -214,8 +218,8 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
           prompt: truncate(config.prompt),
           response: truncate(raw),
           request: {
-            provider: appConfig?.llmProvider ?? "ollama",
-            baseURL,
+            provider,
+            baseURL: baseUrl,
             model: modelName,
             prompt,
           },
@@ -245,8 +249,8 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
           prompt: truncate(config.prompt),
           error: message,
           request: {
-            provider: appConfig?.llmProvider ?? "ollama",
-            baseURL,
+            provider,
+            baseURL: baseUrl,
             model: modelName,
             prompt,
           },

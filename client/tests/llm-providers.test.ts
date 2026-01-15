@@ -30,3 +30,15 @@ describe("provider factory", () => {
     expect(typeof client).toBe("function");
   });
 });
+
+describe("agent config selection", () => {
+  it("prefers agent override provider", () => {
+    const resolved = resolveProviderConfig({
+      globalProvider: "ollama",
+      baseUrl: "http://localhost:11434",
+      apiKey: null,
+      agentProviderOverride: "openai",
+    });
+    expect(resolved.provider).toBe("openai");
+  });
+});
