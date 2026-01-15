@@ -1,3 +1,9 @@
+import { createOllama } from "ai-sdk-ollama";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+
 const KNOWN_PROVIDERS = [
   "ollama",
   "openai",
@@ -15,6 +21,12 @@ type ProviderConfigInput = {
   baseUrl?: string | null;
   apiKey?: string | null;
   agentProviderOverride?: string | null;
+};
+
+type ProviderClientInput = {
+  provider: ProviderKind;
+  baseUrl?: string;
+  apiKey?: string;
 };
 
 export const normalizeProvider = (value?: string | null): ProviderKind => {
@@ -44,4 +56,23 @@ export const resolveProviderConfig = ({
     baseUrl: resolvedBaseUrl,
     apiKey: apiKey?.trim() || undefined,
   };
+};
+
+export const getProviderClient = ({ provider, baseUrl, apiKey }: ProviderClientInput) => {
+  switch (provider) {
+    case "ollama":
+      return createOllama({ baseURL: baseUrl ?? "http://localhost:11434", apiKey });
+    case "openai":
+      return createOpenAI({ apiKey, baseURL: baseUrl });
+    case "openrouter":
+      return createOpenAI({ apiKey, baseURL: baseUrl ?? "https://openrouter.ai/api/v1" });
+    case "anthropic":
+      return createAnthropic({ apiKey });
+    case "gemini":
+      return createGoogleGenerativeAI({ apiKey });
+    case "deepseek":
+      return createDeepSeek({ apiKey, baseURL: baseUrl });
+    case "custom":
+      return createOpenAI({ apiKey, baseURL: baseUrl });
+  }
 };
