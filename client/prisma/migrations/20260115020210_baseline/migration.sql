@@ -13,6 +13,9 @@ CREATE TABLE "AppConfig" (
     "setupComplete" BOOLEAN NOT NULL DEFAULT false,
     "passwordHash" TEXT,
     "passwordSalt" TEXT,
+    "llmProvider" TEXT DEFAULT 'ollama',
+    "llmBaseUrl" TEXT DEFAULT 'http://localhost:11434',
+    "llmApiKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -20,18 +23,72 @@ CREATE TABLE "AppConfig" (
 );
 
 -- CreateTable
+CREATE TABLE "AgentConfig" (
+    "id" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "model" TEXT NOT NULL,
+    "visionModel" TEXT,
+    "systemPrompt" TEXT,
+    "userPrompt" TEXT,
+    "prompt" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AgentConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "InventoryItem" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "category" TEXT,
-    "location" TEXT,
-    "tags" TEXT[],
+    "brand" TEXT,
+    "model" TEXT,
+    "condition" TEXT,
+    "serialNumber" TEXT,
+    "categories" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "photoUrl" TEXT,
     "description" TEXT,
+    "enrichmentStatus" TEXT DEFAULT 'idle',
+    "enrichmentError" TEXT,
+    "enrichmentUpdatedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "InventoryItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InventoryAttachment" (
+    "id" TEXT NOT NULL,
+    "itemId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "order" INTEGER NOT NULL,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InventoryAttachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Room" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Room_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Tag" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -161,6 +218,40 @@ CREATE TABLE "AuditLog" (
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "_InventoryItemToRoom" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_InventoryItemToRoom_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
+CREATE TABLE "_InventoryItemToTag" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_InventoryItemToTag_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AgentConfig_agentId_key" ON "AgentConfig"("agentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Room_name_key" ON "Room"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
+
+-- CreateIndex
+CREATE INDEX "_InventoryItemToRoom_B_index" ON "_InventoryItemToRoom"("B");
+
+-- CreateIndex
+CREATE INDEX "_InventoryItemToTag_B_index" ON "_InventoryItemToTag"("B");
+
+-- AddForeignKey
+ALTER TABLE "InventoryAttachment" ADD CONSTRAINT "InventoryAttachment_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "GroceryItem" ADD CONSTRAINT "GroceryItem_listId_fkey" FOREIGN KEY ("listId") REFERENCES "GroceryList"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -175,3 +266,15 @@ ALTER TABLE "MealPlanItem" ADD CONSTRAINT "MealPlanItem_planId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "ProposalChange" ADD CONSTRAINT "ProposalChange_proposalId_fkey" FOREIGN KEY ("proposalId") REFERENCES "Proposal"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_InventoryItemToRoom" ADD CONSTRAINT "_InventoryItemToRoom_A_fkey" FOREIGN KEY ("A") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_InventoryItemToRoom" ADD CONSTRAINT "_InventoryItemToRoom_B_fkey" FOREIGN KEY ("B") REFERENCES "Room"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_InventoryItemToTag" ADD CONSTRAINT "_InventoryItemToTag_A_fkey" FOREIGN KEY ("A") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_InventoryItemToTag" ADD CONSTRAINT "_InventoryItemToTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
