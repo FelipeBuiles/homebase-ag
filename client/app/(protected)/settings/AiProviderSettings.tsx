@@ -31,9 +31,11 @@ type AiProviderSettingsProps = {
   provider?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  model?: string | null;
+  visionModel?: string | null;
 };
 
-export function AiProviderSettings({ provider, baseUrl, apiKey }: AiProviderSettingsProps) {
+export function AiProviderSettings({ provider, baseUrl, apiKey, model, visionModel }: AiProviderSettingsProps) {
   const normalizedProvider = provider?.trim().toLowerCase();
   const isKnownProvider = normalizedProvider ? KNOWN_PROVIDERS.has(normalizedProvider) : false;
   const isLiteralCustom = normalizedProvider === "custom";
@@ -123,6 +125,24 @@ export function AiProviderSettings({ provider, baseUrl, apiKey }: AiProviderSett
                 {showApiKey ? "Hide" : "Reveal"}
               </Button>
             </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="global-model">Global model</label>
+            <Input
+              id="global-model"
+              name="model"
+              defaultValue={model ?? ""}
+              placeholder="gpt-4.1-mini"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="global-vision-model">Global vision model</label>
+            <Input
+              id="global-vision-model"
+              name="visionModel"
+              defaultValue={visionModel ?? ""}
+              placeholder="gpt-4.1-mini"
+            />
           </div>
           <div className="md:col-span-2">
             <Button type="submit" size="sm">Save AI settings</Button>

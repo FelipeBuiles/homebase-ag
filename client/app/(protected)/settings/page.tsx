@@ -25,6 +25,8 @@ export default async function SettingsPage() {
         provider={config?.llmProvider}
         baseUrl={config?.llmBaseUrl}
         apiKey={config?.llmApiKey}
+        model={config?.llmModel}
+        visionModel={config?.llmVisionModel}
       />
       <AgentSettings />
       <OrganizationSettings />

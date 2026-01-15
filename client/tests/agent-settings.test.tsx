@@ -15,8 +15,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("renders provider override control", async () => {
+it("hides override fields until enabled", async () => {
   const ui = await AgentSettings();
   render(ui);
-  expect(screen.queryAllByText(/provider override/i).length).toBeGreaterThan(0);
+  expect(screen.queryByLabelText(/override provider/i)).toBeNull();
 });

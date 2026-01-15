@@ -8,3 +8,9 @@ it("shows custom provider input when custom is selected", () => {
   const input = screen.getByLabelText(/custom provider/i);
   expect(input).toBeTruthy();
 });
+
+it("renders global model overrides", () => {
+  render(<AiProviderSettings provider="openai" baseUrl="" apiKey="" />);
+  expect(screen.getByLabelText(/global model/i)).toBeTruthy();
+  expect(screen.getByLabelText(/global vision model/i)).toBeTruthy();
+});
