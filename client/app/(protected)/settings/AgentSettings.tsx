@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateAgentConfig } from "./ai-actions";
+import { ProviderOverrideSelect } from "./ProviderOverrideSelect";
 
 export async function AgentSettings() {
   const configs = await prisma.agentConfig.findMany();
@@ -38,8 +39,13 @@ export async function AgentSettings() {
 
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="md:col-span-2">
-                  <label className="text-sm font-medium">Model</label>
-                  <Input name="model" defaultValue={config?.model ?? agent.defaultModel} placeholder="llama3.1" />
+                  <label className="text-sm font-medium" htmlFor={`${agent.agentId}-model`}>Model</label>
+                  <Input
+                    id={`${agent.agentId}-model`}
+                    name="model"
+                    defaultValue={config?.model ?? agent.defaultModel}
+                    placeholder="llama3.1"
+                  />
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="enabled" defaultChecked={config?.enabled ?? true} className="h-4 w-4 accent-primary" />
@@ -49,13 +55,21 @@ export async function AgentSettings() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <label className="text-sm font-medium">Vision model</label>
+                  <label className="text-sm font-medium" htmlFor={`${agent.agentId}-vision-model`}>Vision model</label>
                   <Input
+                    id={`${agent.agentId}-vision-model`}
                     name="visionModel"
                     defaultValue={config?.visionModel ?? agent.defaultVisionModel ?? agent.defaultModel}
                     placeholder={agent.defaultVisionModel ?? agent.defaultModel}
                   />
                   <p className="text-xs text-muted-foreground mt-1">Optional. Used for image inputs.</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Provider override</label>
+                  <ProviderOverrideSelect
+                    name="providerOverride"
+                    defaultValue={config?.providerOverride ?? ""}
+                  />
                 </div>
               </div>
 
