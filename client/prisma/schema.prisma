@@ -21,6 +21,8 @@ model AppConfig {
   llmProvider   String?  @default("ollama")
   llmBaseUrl    String?  @default("http://localhost:11434")
   llmApiKey     String?
+  llmModel      String?
+  llmVisionModel String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -33,7 +35,10 @@ model AgentConfig {
   systemPrompt String?
   userPrompt   String?
   prompt    String
+  overrideEnabled Boolean @default(false)
   providerOverride String?
+  modelOverride String?
+  visionModelOverride String?
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

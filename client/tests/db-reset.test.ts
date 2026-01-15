@@ -31,4 +31,34 @@ describe("resetDb", () => {
     });
     expect(config.providerOverride).toBe("openrouter");
   });
+
+  it("stores global and agent override flags", async () => {
+    const app = await prisma.appConfig.create({
+      data: {
+        id: "app",
+        setupComplete: true,
+        llmProvider: "openai",
+        llmModel: "gpt-4.1-mini",
+        llmVisionModel: "gpt-4.1-mini",
+      },
+    });
+    expect(app.llmModel).toBe("gpt-4.1-mini");
+
+    const agent = await prisma.agentConfig.create({
+      data: {
+        agentId: "agent_enrichment",
+        model: "llama3.1",
+        visionModel: "llama3.1",
+        prompt: "x",
+        systemPrompt: "x",
+        userPrompt: "",
+        providerOverride: "openrouter",
+        modelOverride: "openrouter/gpt-4o-mini",
+        visionModelOverride: "openrouter/gpt-4o-mini",
+        overrideEnabled: true,
+        enabled: true,
+      },
+    });
+    expect(agent.overrideEnabled).toBe(true);
+  });
 });
