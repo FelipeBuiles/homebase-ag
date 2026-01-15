@@ -13,6 +13,8 @@ export async function updateAiProvider(formData: FormData) {
   const provider = (formData.get("provider") as string | null) ?? "ollama";
   const baseUrl = (formData.get("baseUrl") as string | null) ?? "";
   const apiKey = (formData.get("apiKey") as string | null) ?? "";
+  const model = (formData.get("model") as string | null)?.trim();
+  const visionModel = (formData.get("visionModel") as string | null)?.trim();
   const id = await getConfigId();
 
   await prisma.appConfig.upsert({
@@ -23,11 +25,15 @@ export async function updateAiProvider(formData: FormData) {
       llmProvider: provider,
       llmBaseUrl: baseUrl || "http://localhost:11434",
       llmApiKey: apiKey || null,
+      llmModel: model || null,
+      llmVisionModel: visionModel || null,
     },
     update: {
       llmProvider: provider,
       llmBaseUrl: baseUrl || "http://localhost:11434",
       llmApiKey: apiKey || null,
+      llmModel: model || null,
+      llmVisionModel: visionModel || null,
     },
   });
 
@@ -39,6 +45,9 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
   const visionModel = (formData.get("visionModel") as string | null)?.trim();
   const userPrompt = (formData.get("userPrompt") as string | null) ?? "";
   const providerOverride = (formData.get("providerOverride") as string | null)?.trim();
+  const modelOverride = (formData.get("modelOverride") as string | null)?.trim();
+  const visionModelOverride = (formData.get("visionModelOverride") as string | null)?.trim();
+  const overrideEnabled = formData.get("overrideEnabled") === "on";
   const enabled = formData.get("enabled") === "on";
 
   const fallback = AGENT_PROMPTS.find((agent) => agent.agentId === agentId);
@@ -59,6 +68,9 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
       systemPrompt: systemPromptToUse,
       userPrompt: userPromptToUse,
       providerOverride: providerOverride || null,
+      modelOverride: modelOverride || null,
+      visionModelOverride: visionModelOverride || null,
+      overrideEnabled,
       enabled,
     },
     update: {
@@ -68,6 +80,9 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
       systemPrompt: systemPromptToUse,
       userPrompt: userPromptToUse,
       providerOverride: providerOverride || null,
+      modelOverride: modelOverride || null,
+      visionModelOverride: visionModelOverride || null,
+      overrideEnabled,
       enabled,
     },
   });
