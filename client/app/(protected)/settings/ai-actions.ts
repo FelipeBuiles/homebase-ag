@@ -38,6 +38,7 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
   const model = (formData.get("model") as string | null)?.trim();
   const visionModel = (formData.get("visionModel") as string | null)?.trim();
   const userPrompt = (formData.get("userPrompt") as string | null) ?? "";
+  const providerOverride = (formData.get("providerOverride") as string | null)?.trim();
   const enabled = formData.get("enabled") === "on";
 
   const fallback = AGENT_PROMPTS.find((agent) => agent.agentId === agentId);
@@ -57,6 +58,7 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
       prompt: systemPromptToUse,
       systemPrompt: systemPromptToUse,
       userPrompt: userPromptToUse,
+      providerOverride: providerOverride || null,
       enabled,
     },
     update: {
@@ -65,6 +67,7 @@ export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
       prompt: systemPromptToUse,
       systemPrompt: systemPromptToUse,
       userPrompt: userPromptToUse,
+      providerOverride: providerOverride || null,
       enabled,
     },
   });
