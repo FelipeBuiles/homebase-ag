@@ -77,3 +77,27 @@ export const isInventoryEnrichmentPending = (item: {
   if (attachments.length === 0) return false;
   return categories.length === 0 || rooms.length === 0;
 };
+
+export const isInventoryStatusMatch = (
+  item: {
+    name?: string | null;
+    categories?: string[] | null;
+    rooms?: unknown[] | null;
+    attachments?: unknown[] | null;
+    enrichmentStatus?: string | null;
+  },
+  status: string
+) => {
+  const categories = item.categories ?? [];
+  const rooms = item.rooms ?? [];
+  const attachments = item.attachments ?? [];
+  const complete = isInventoryComplete(item);
+
+  if (status === "complete") return complete;
+  if (status === "incomplete") return !complete;
+  if (status === "needs-category") return categories.length === 0;
+  if (status === "needs-room") return rooms.length === 0;
+  if (status === "needs-enrichment") return attachments.length > 0 && !complete;
+  if (status === "enrichment-failed") return item.enrichmentStatus === "failed";
+  return true;
+};
