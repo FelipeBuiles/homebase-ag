@@ -3,11 +3,13 @@ import { Prisma } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Package } from "lucide-react";
 import Link from "next/link";
 import { quickAddInventoryItem } from "./actions";
 import { DEFAULT_INVENTORY_CATEGORIES, isInventoryComplete, toTitleCase } from "@/lib/inventory";
 import { InventoryList } from "./InventoryList";
+import { InventoryTable } from "./InventoryTable";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -23,10 +25,13 @@ export default async function InventoryPage({
 }) {
   const params = await searchParams;
   const query = getSearchParam(params, "q")?.trim();
-  const status = getSearchParam(params, "status");
-  const category = getSearchParam(params, "category");
-  const room = getSearchParam(params, "room");
-  const tag = getSearchParam(params, "tag");
+  const normalizeParam = (value?: string) => (value && value !== "all" ? value : undefined);
+  const status = normalizeParam(getSearchParam(params, "status"));
+  const category = normalizeParam(getSearchParam(params, "category"));
+  const room = normalizeParam(getSearchParam(params, "room"));
+  const tag = normalizeParam(getSearchParam(params, "tag"));
+  const hasAttachments = getSearchParam(params, "hasAttachments") === "1";
+  const view = getSearchParam(params, "view") === "table" ? "table" : "grid";
 
   const [rooms, tags] = await Promise.all([
     prisma.room.findMany({ orderBy: { name: "asc" } }),
@@ -48,6 +53,9 @@ export default async function InventoryPage({
     where.OR = [
       { name: { contains: query, mode: "insensitive" } },
       { description: { contains: query, mode: "insensitive" } },
+      { brand: { contains: query, mode: "insensitive" } },
+      { model: { contains: query, mode: "insensitive" } },
+      { serialNumber: { contains: query, mode: "insensitive" } },
       { rooms: { some: { name: { contains: query, mode: "insensitive" } } } },
       { tags: { some: { name: { contains: query, mode: "insensitive" } } } },
       normalizedQuery ? { categories: { has: normalizedQuery } } : undefined,
@@ -68,75 +76,173 @@ export default async function InventoryPage({
     const complete = isInventoryComplete(item);
     if (status === "complete") return complete;
     if (status === "incomplete") return !complete;
+    if (status === "needs-category") return item.categories.length === 0;
+    if (status === "needs-room") return item.rooms.length === 0;
+    if (status === "needs-enrichment") return item.attachments.length > 0 && !complete;
+    if (status === "enrichment-failed") return item.enrichmentStatus === "failed";
     return true;
   });
+  const withAttachments = hasAttachments
+    ? filtered.filter((item) => item.attachments.length > 0)
+    : filtered;
+
+  const buildHref = (overrides: Record<string, string | null>) => {
+    const search = new URLSearchParams();
+    const entries: Record<string, string | undefined> = {
+      q: query,
+      status,
+      category,
+      room,
+      tag,
+      view,
+      hasAttachments: hasAttachments ? "1" : undefined,
+    };
+    Object.entries(entries).forEach(([key, value]) => {
+      if (value) search.set(key, value);
+    });
+    Object.entries(overrides).forEach(([key, value]) => {
+      if (!value) search.delete(key);
+      else search.set(key, value);
+    });
+    const queryString = search.toString();
+    return queryString ? `/inventory?${queryString}` : "/inventory";
+  };
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-10">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Inventory</h1>
-          <p className="text-muted-foreground">Manage your household items.</p>
+          <h1 className="page-title">Inventory</h1>
+          <p className="page-subtitle">Manage your household items.</p>
         </div>
-        <Link href="/inventory/new">
-          <Button className="gap-2">
-            <Plus size={16} /> Add Item
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Link href={buildHref({ view: "grid" })} className="nav-pill" data-active={view === "grid"}>
+              Grid
+            </Link>
+            <Link href={buildHref({ view: "table" })} className="nav-pill" data-active={view === "table"}>
+              Table
+            </Link>
+          </div>
+          <Link href="/inventory/new">
+            <Button className="gap-2">
+              <Plus size={16} /> Add Item
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <Card className="mb-8 bg-card/80">
+      <Card className="mb-6 bg-card/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Quick filters</CardTitle>
+          <CardDescription>Jump to high-signal views.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-2">
+          <Link href={buildHref({ status: null, hasAttachments: null })} className="nav-pill" data-active={!status && !hasAttachments}>
+            All
+          </Link>
+          <Link href={buildHref({ status: "incomplete" })} className="nav-pill" data-active={status === "incomplete"}>
+            Needs details
+          </Link>
+          <Link href={buildHref({ status: "needs-category" })} className="nav-pill" data-active={status === "needs-category"}>
+            Needs category
+          </Link>
+          <Link href={buildHref({ status: "needs-room" })} className="nav-pill" data-active={status === "needs-room"}>
+            Needs room
+          </Link>
+          <Link href={buildHref({ status: "needs-enrichment" })} className="nav-pill" data-active={status === "needs-enrichment"}>
+            Needs enrichment
+          </Link>
+          <Link href={buildHref({ status: "enrichment-failed" })} className="nav-pill" data-active={status === "enrichment-failed"}>
+            Enrichment failed
+          </Link>
+          <Link
+            href={buildHref({ hasAttachments: hasAttachments ? null : "1" })}
+            className="nav-pill"
+            data-active={hasAttachments}
+          >
+            With attachments
+          </Link>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Quick add</CardTitle>
           <CardDescription>Add an item now and fill details later.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={quickAddInventoryItem} encType="multipart/form-data" className="flex flex-wrap gap-3">
-            <Input name="name" placeholder="Item name" className="min-w-[220px] flex-1" required />
-            <Input name="attachments" type="file" multiple accept="image/*,video/*" className="min-w-[220px] flex-1" />
+          <form action={quickAddInventoryItem} className="flex flex-wrap gap-3">
+            <Input name="name" placeholder="Item name" className="min-w-[200px] flex-1" required />
+            <Input name="attachments" type="file" multiple accept="image/*,video/*" className="min-w-[200px] flex-1" />
             <Button type="submit">Add</Button>
           </form>
         </CardContent>
       </Card>
 
-      <Card className="mb-8 bg-card/80">
+      <Card className="mb-8">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Search & filter</CardTitle>
           <CardDescription>Find items by name, room, category, or tag.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form method="get" className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <form method="get" className="grid gap-4 lg:grid-cols-6">
             <Input name="q" placeholder="Search items..." defaultValue={query ?? ""} className="lg:col-span-2" />
-            <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">All categories</option>
-              {DEFAULT_INVENTORY_CATEGORIES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <select name="room" defaultValue={room ?? ""} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">All rooms</option>
-              {rooms.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-            <select name="tag" defaultValue={tag ?? ""} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">All tags</option>
-              {tags.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-            <select name="status" defaultValue={status ?? ""} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">Any status</option>
-              <option value="complete">Complete</option>
-              <option value="incomplete">Needs details</option>
-            </select>
-            <div className="flex flex-wrap items-center gap-2 lg:col-span-5">
+            <input type="hidden" name="view" value={view} />
+            <Select name="category" defaultValue={category ?? "all"}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {DEFAULT_INVENTORY_CATEGORIES.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select name="room" defaultValue={room ?? "all"}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All rooms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All rooms</SelectItem>
+                {rooms.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select name="tag" defaultValue={tag ?? "all"}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All tags" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tags</SelectItem>
+                {tags.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select name="status" defaultValue={status ?? "all"}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Any status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any status</SelectItem>
+                <SelectItem value="complete">Complete</SelectItem>
+                <SelectItem value="incomplete">Needs details</SelectItem>
+                <SelectItem value="needs-category">Needs category</SelectItem>
+                <SelectItem value="needs-room">Needs room</SelectItem>
+                <SelectItem value="needs-enrichment">Needs enrichment</SelectItem>
+                <SelectItem value="enrichment-failed">Enrichment failed</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex flex-wrap items-center gap-2 lg:col-span-6">
               <Button type="submit" size="sm">Apply filters</Button>
               <Link href="/inventory" className="text-sm text-muted-foreground hover:text-primary">
                 Clear filters
@@ -146,7 +252,7 @@ export default async function InventoryPage({
         </CardContent>
       </Card>
 
-      {filtered.length === 0 ? (
+      {withAttachments.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-border/70 rounded-2xl bg-card/70">
           <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">No items yet</h3>
@@ -165,24 +271,53 @@ export default async function InventoryPage({
           )}
         </div>
       ) : (
-        <InventoryList
-          items={filtered.map((item) => ({
-            id: item.id,
-            name: item.name,
+        view === "table" ? (
+          <InventoryTable
+            items={withAttachments.map((item) => ({
+              id: item.id,
+              name: item.name,
+            brand: item.brand,
+            model: item.model,
+            condition: item.condition,
+            serialNumber: item.serialNumber,
+            enrichmentStatus: item.enrichmentStatus,
             categories: item.categories,
-            rooms: item.rooms.map((room) => ({ id: room.id, name: room.name })),
-            tags: item.tags.map((tag) => ({ id: tag.id, name: tag.name })),
-            attachments: item.attachments.map((attachment) => ({
-              id: attachment.id,
-              url: attachment.url,
-              kind: attachment.kind as "photo" | "video",
-              order: attachment.order,
-            })),
-          }))}
-          rooms={rooms.map((room) => ({ id: room.id, name: room.name }))}
-          tags={tags.map((tag) => ({ id: tag.id, name: tag.name }))}
-          categories={DEFAULT_INVENTORY_CATEGORIES}
-        />
+              rooms: item.rooms.map((room) => ({ id: room.id, name: room.name })),
+              tags: item.tags.map((tag) => ({ id: tag.id, name: tag.name })),
+              attachments: item.attachments.map((attachment) => ({
+                id: attachment.id,
+                url: attachment.url,
+                kind: attachment.kind as "photo" | "video",
+                order: attachment.order,
+              })),
+              updatedAt: item.updatedAt,
+            }))}
+          />
+        ) : (
+          <InventoryList
+            items={withAttachments.map((item) => ({
+              id: item.id,
+              name: item.name,
+              brand: item.brand,
+              model: item.model,
+              condition: item.condition,
+              serialNumber: item.serialNumber,
+              enrichmentStatus: item.enrichmentStatus,
+              categories: item.categories,
+              rooms: item.rooms.map((room) => ({ id: room.id, name: room.name })),
+              tags: item.tags.map((tag) => ({ id: tag.id, name: tag.name })),
+              attachments: item.attachments.map((attachment) => ({
+                id: attachment.id,
+                url: attachment.url,
+                kind: attachment.kind as "photo" | "video",
+                order: attachment.order,
+              })),
+            }))}
+            rooms={rooms.map((room) => ({ id: room.id, name: room.name }))}
+            tags={tags.map((tag) => ({ id: tag.id, name: tag.name }))}
+            categories={DEFAULT_INVENTORY_CATEGORIES}
+          />
+        )
       )}
     </div>
   );

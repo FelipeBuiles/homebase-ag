@@ -105,13 +105,13 @@ export default async function ActivityMetricsPage({
   const successRate = summary.count ? Math.round((summary.success / summary.count) * 100) : 0;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-10 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="page-container space-y-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Agent Metrics</h1>
-          <p className="text-muted-foreground">Resource usage and execution stats for agent runs.</p>
+          <h1 className="page-title">Agent Metrics</h1>
+          <p className="page-subtitle">Resource usage and execution stats for agent runs.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="page-actions">
           <Link href="/activity" className="nav-pill">
             Back to activity
           </Link>
@@ -125,13 +125,13 @@ export default async function ActivityMetricsPage({
           <CardDescription>Metrics are computed over the selected window.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Link href="/activity/metrics?range=24h" className={`nav-pill ${range === "24h" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity/metrics?range=24h" className="nav-pill" data-active={range === "24h"}>
             24h
           </Link>
-          <Link href="/activity/metrics" className={`nav-pill ${!range || range === "7d" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity/metrics" className="nav-pill" data-active={!range || range === "7d"}>
             7d
           </Link>
-          <Link href="/activity/metrics?range=30d" className={`nav-pill ${range === "30d" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity/metrics?range=30d" className="nav-pill" data-active={range === "30d"}>
             30d
           </Link>
         </CardContent>

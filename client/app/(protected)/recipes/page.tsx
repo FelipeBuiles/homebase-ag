@@ -37,18 +37,31 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
       }
   };
 
+  const templates = [
+    { title: "Weeknight staples", description: "Quick 20 minute dinners." },
+    { title: "Breakfast rotation", description: "Simple, repeatable starts." },
+    { title: "Comfort favorites", description: "The meals everyone asks for." },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-10">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Recipes</h1>
-          <p className="text-muted-foreground">{planId ? "Select a recipe for your plan." : "Your personal cookbook."}</p>
+          <h1 className="page-title">Recipes</h1>
+          <p className="page-subtitle">{planId ? "Select a recipe for your plan." : "Your personal cookbook."}</p>
         </div>
-        <Link href="/recipes/new">
-          <Button className="gap-2">
-            <Plus size={16} /> Add Recipe
-          </Button>
-        </Link>
+        <div className="page-actions">
+          <Link href="/recipes/new">
+            <Button className="gap-2">
+              <Plus size={16} /> Add Recipe
+            </Button>
+          </Link>
+          {!planId && (
+            <Link href="/groceries" className="text-sm text-muted-foreground hover:text-primary">
+              View grocery lists
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
@@ -91,9 +104,35 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
           )
         ))}
         {recipes.length === 0 && (
-             <div className="col-span-full text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p>No recipes yet. Add one to get started!</p>
-             </div>
+          planId ? (
+            <Card className="col-span-full border-dashed">
+              <CardContent className="py-10 text-center text-muted-foreground space-y-3">
+                <p className="text-lg text-foreground">No recipes yet</p>
+                <p className="text-sm text-muted-foreground">Add a recipe to start building your plan.</p>
+                <Link href="/recipes/new">
+                  <Button size="sm" className="gap-2">
+                    <Plus size={14} /> Add recipe
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="col-span-full grid gap-4 md:grid-cols-3">
+              {templates.map((template) => (
+                <Card key={template.title} className="border-dashed">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{template.title}</CardTitle>
+                    <CardDescription>{template.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Link href="/recipes/new" className="text-sm text-primary hover:underline">
+                      Start with this template
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

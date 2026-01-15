@@ -23,6 +23,10 @@ const actionLabel = (action: string) => {
       return { label: "Agent Run", variant: "default" as const };
     case "agent.run.failed":
       return { label: "Agent Failed", variant: "destructive" as const };
+    case "agent.vision.run":
+      return { label: "Vision Run", variant: "default" as const };
+    case "agent.vision.failed":
+      return { label: "Vision Failed", variant: "destructive" as const };
     default:
       return { label: action, variant: "outline" as const };
   }
@@ -55,13 +59,13 @@ export default async function ActivityPage({
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-10 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="page-container space-y-6">
+      <div className="page-header">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Agent Activity</h1>
-          <p className="text-muted-foreground">Review proposal decisions and agent runs.</p>
+          <h1 className="page-title">Agent Activity</h1>
+          <p className="page-subtitle">Review proposal decisions and agent runs.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="page-actions">
           <Link href="/activity/metrics" className="nav-pill">
             Metrics
           </Link>
@@ -75,23 +79,29 @@ export default async function ActivityPage({
           <CardDescription>Filter by action type or search summary and agent.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
-          <Link href="/activity" className={`nav-pill ${!action ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity" className="nav-pill" data-active={!action}>
             All
           </Link>
-          <Link href="/activity?action=proposal.accepted" className={`nav-pill ${action === "proposal.accepted" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity?action=proposal.accepted" className="nav-pill" data-active={action === "proposal.accepted"}>
             Accepted
           </Link>
-          <Link href="/activity?action=proposal.rejected" className={`nav-pill ${action === "proposal.rejected" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity?action=proposal.rejected" className="nav-pill" data-active={action === "proposal.rejected"}>
             Rejected
           </Link>
-          <Link href="/activity?action=proposal.failed" className={`nav-pill ${action === "proposal.failed" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity?action=proposal.failed" className="nav-pill" data-active={action === "proposal.failed"}>
             Failed
           </Link>
-          <Link href="/activity?action=agent.run" className={`nav-pill ${action === "agent.run" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity?action=agent.run" className="nav-pill" data-active={action === "agent.run"}>
             Agent runs
           </Link>
-          <Link href="/activity?action=agent.run.failed" className={`nav-pill ${action === "agent.run.failed" ? "bg-secondary/70" : ""}`}>
+          <Link href="/activity?action=agent.run.failed" className="nav-pill" data-active={action === "agent.run.failed"}>
             Agent failed
+          </Link>
+          <Link href="/activity?action=agent.vision.run" className="nav-pill" data-active={action === "agent.vision.run"}>
+            Vision runs
+          </Link>
+          <Link href="/activity?action=agent.vision.failed" className="nav-pill" data-active={action === "agent.vision.failed"}>
+            Vision failed
           </Link>
           <form className="ml-auto">
             <Input
@@ -117,7 +127,11 @@ export default async function ActivityPage({
             const summary = details?.summary as string | undefined;
             const agentId = details?.agentId as string | undefined;
             const proposalId = details?.proposalId as string | undefined;
+            const error = details?.error as string | undefined;
+            const responseRaw = details?.responseRaw as string | undefined;
+            const model = details?.model as string | undefined;
             const actionInfo = actionLabel(log.action);
+            const trimmedResponse = responseRaw ? responseRaw.slice(0, 800) : null;
             return (
               <Card key={log.id} className="bg-card/80">
                 <CardHeader>
@@ -134,7 +148,18 @@ export default async function ActivityPage({
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground space-y-2">
                   {proposalId && <div>Proposal ID: {proposalId}</div>}
+                  {model && <div>Model: {model}</div>}
                   {!summary && <div>Action: {log.action}</div>}
+                  {error && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive">
+                      {error}
+                    </div>
+                  )}
+                  {trimmedResponse && (
+                    <pre className="whitespace-pre-wrap rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+                      {trimmedResponse}
+                    </pre>
+                  )}
                 </CardContent>
               </Card>
             );

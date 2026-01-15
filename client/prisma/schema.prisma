@@ -29,6 +29,9 @@ model AgentConfig {
   id        String   @id @default(uuid())
   agentId   String   @unique
   model     String
+  visionModel String?
+  systemPrompt String?
+  userPrompt   String?
   prompt    String
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -38,12 +41,19 @@ model AgentConfig {
 model InventoryItem {
   id          String   @id @default(uuid())
   name        String
+  brand       String?
+  model       String?
+  condition   String?
+  serialNumber String?
   categories  String[] @default([])
   rooms       Room[]
   tags        Tag[]
   attachments InventoryAttachment[]
   photoUrl    String?
   description String?
+  enrichmentStatus String? @default("idle")
+  enrichmentError  String?
+  enrichmentUpdatedAt DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -56,6 +66,7 @@ model InventoryAttachment {
   kind      String        // photo | video
   url       String
   order     Int
+  metadata  Json?
   createdAt DateTime      @default(now())
 }
 

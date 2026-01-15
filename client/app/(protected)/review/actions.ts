@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import type { JsonPatchOp } from "@/lib/types";
+import { toTitleCase } from "@/lib/inventory";
 
 type UpdateModel = {
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
@@ -11,7 +12,7 @@ type UpdateModel = {
 
 const ENTITY_FIELDS: Record<string, { allowed: string[]; requiredOnCreate: string[] }> = {
     InventoryItem: {
-        allowed: ["name", "categories", "photoUrl", "description"],
+        allowed: ["name", "brand", "model", "condition", "serialNumber", "categories", "rooms", "tags", "photoUrl", "description"],
         requiredOnCreate: ["name"],
     },
     GroceryItem: {
@@ -115,15 +116,16 @@ const applyJsonPatch = (
 const buildChangeData = (
     change: { after: unknown; before: unknown; diff: unknown }
 ): Record<string, unknown> => {
-    const after = change.after as Record<string, unknown> | null;
-    if (after && typeof after === "object" && Object.keys(after).length > 0) {
-        return { ...after };
-    }
-
     const before = change.before as Record<string, unknown> | null;
     const base = before && typeof before === "object" ? before : {};
     const diffOps = Array.isArray(change.diff) ? (change.diff as JsonPatchOp[]) : [];
-    if (diffOps.length === 0) return {};
+    if (diffOps.length === 0) {
+        const after = change.after as Record<string, unknown> | null;
+        if (after && typeof after === "object" && Object.keys(after).length > 0) {
+            return { ...after };
+        }
+        return {};
+    }
 
     return applyJsonPatch(base, diffOps);
 };
@@ -155,6 +157,15 @@ const validateRequired = (
     if (missing.length > 0) {
         throw new Error(`VALIDATION: Missing required fields: ${missing.join(", ")}`);
     }
+};
+
+const normalizeNameList = (value: unknown) => {
+    if (!Array.isArray(value)) return null;
+    const names = value
+        .map((entry) => (typeof entry === "string" ? toTitleCase(entry) : ""))
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    return Array.from(new Set(names));
 };
 
 export async function approveProposal(proposalId: string) {
@@ -211,6 +222,31 @@ export async function approveSelectedChanges(proposalId: string, changeIds: stri
                         dataToUpdate.listId = list.id;
                     }
 
+                    if (change.entityType === 'InventoryItem') {
+                        const roomNames = normalizeNameList(dataToUpdate.rooms);
+                        const tagNames = normalizeNameList(dataToUpdate.tags);
+                        if (roomNames) {
+                            const rooms = await Promise.all(
+                                roomNames.map((name) =>
+                                    tx.room.upsert({ where: { name }, create: { name }, update: {} })
+                                )
+                            );
+                            dataToUpdate.rooms = { set: rooms.map((room) => ({ id: room.id })) };
+                        } else {
+                            delete dataToUpdate.rooms;
+                        }
+                        if (tagNames) {
+                            const tags = await Promise.all(
+                                tagNames.map((name) =>
+                                    tx.tag.upsert({ where: { name }, create: { name }, update: {} })
+                                )
+                            );
+                            dataToUpdate.tags = { set: tags.map((tag) => ({ id: tag.id })) };
+                        } else {
+                            delete dataToUpdate.tags;
+                        }
+                    }
+
                     validateRequired(change.entityType, dataToUpdate);
 
                     await model.create({
@@ -218,6 +254,31 @@ export async function approveSelectedChanges(proposalId: string, changeIds: stri
                     });
                 } else {
                     // Handle Update
+                    if (change.entityType === 'InventoryItem') {
+                        const roomNames = normalizeNameList(dataToUpdate.rooms);
+                        const tagNames = normalizeNameList(dataToUpdate.tags);
+                        if (roomNames) {
+                            const rooms = await Promise.all(
+                                roomNames.map((name) =>
+                                    tx.room.upsert({ where: { name }, create: { name }, update: {} })
+                                )
+                            );
+                            dataToUpdate.rooms = { set: rooms.map((room) => ({ id: room.id })) };
+                        } else {
+                            delete dataToUpdate.rooms;
+                        }
+                        if (tagNames) {
+                            const tags = await Promise.all(
+                                tagNames.map((name) =>
+                                    tx.tag.upsert({ where: { name }, create: { name }, update: {} })
+                                )
+                            );
+                            dataToUpdate.tags = { set: tags.map((tag) => ({ id: tag.id })) };
+                        } else {
+                            delete dataToUpdate.tags;
+                        }
+                    }
+
                     await model.update({
                         where: { id: change.entityId },
                         data: dataToUpdate

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { createMealPlan } from "./actions";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 async function getMealPlans() {
   return await prisma.mealPlan.findMany({
@@ -14,13 +14,14 @@ async function getMealPlans() {
 
 export default async function MealPlansPage() {
   const plans = await getMealPlans();
+  const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-10">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-10">
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Meal Plans</h1>
-          <p className="text-muted-foreground">Weekly menus.</p>
+          <h1 className="page-title">Meal Plans</h1>
+          <p className="page-subtitle">Weekly menus.</p>
         </div>
         <form action={createMealPlan}>
             <input type="hidden" name="startDate" value={new Date().toISOString()} />
@@ -29,6 +30,24 @@ export default async function MealPlansPage() {
             </Button>
         </form>
       </div>
+
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="text-lg">This week at a glance</CardTitle>
+          <CardDescription>Plan meals by day and track pantry coverage.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-7">
+          {weekdays.map((day) => (
+            <div
+              key={day}
+              className="rounded-xl border border-border/70 bg-background/60 px-3 py-4 text-center"
+            >
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{day}</p>
+              <p className="mt-2 text-sm text-muted-foreground">No meals</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger">
         {plans.map((plan) => (
@@ -44,9 +63,18 @@ export default async function MealPlansPage() {
           </Link>
         ))}
          {plans.length === 0 && (
-             <div className="col-span-full text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p>No meal plans yet.</p>
-             </div>
+             <Card className="col-span-full border-dashed">
+                <CardContent className="py-10 text-center text-muted-foreground space-y-3">
+                  <p className="text-lg text-foreground">No meal plans yet</p>
+                  <p className="text-sm text-muted-foreground">Create a weekly plan to connect recipes and pantry items.</p>
+                  <form action={createMealPlan}>
+                    <input type="hidden" name="startDate" value={new Date().toISOString()} />
+                    <Button size="sm" className="gap-2">
+                      <Plus size={14} /> Create current week
+                    </Button>
+                  </form>
+                </CardContent>
+             </Card>
         )}
       </div>
     </div>

@@ -69,8 +69,15 @@ const saveInventoryAttachments = async (itemId: string, files: File[]) => {
 };
 
 export async function createInventoryItem(formData: FormData) {
-    const name = formData.get("name") as string;
+    const mode = formData.get("mode");
+    const wantsPhotoOnly = mode === "photo-only";
+    const nameInput = (formData.get("name") as string | null) ?? "";
+    const name = nameInput.trim();
     const description = (formData.get("description") as string | null) ?? "";
+    const brandInput = (formData.get("brand") as string | null) ?? "";
+    const modelInput = (formData.get("model") as string | null) ?? "";
+    const conditionInput = (formData.get("condition") as string | null) ?? "";
+    const serialInput = (formData.get("serialNumber") as string | null) ?? "";
     const categories = normalizeCategories(formData.getAll("categories"))
         .filter((category) => DEFAULT_INVENTORY_CATEGORIES.includes(category));
     const roomIds = formData.getAll("rooms").map((value) => value.toString());
@@ -79,7 +86,10 @@ export async function createInventoryItem(formData: FormData) {
     const newTag = normalizeTagName(formData.get("newTag"));
     const attachments = formData.getAll("attachments") as File[];
 
-    if (!name) return;
+    const hasAttachments = attachments.some((file) => file && file.size > 0);
+    const resolvedName = name || (wantsPhotoOnly && hasAttachments ? "New item" : "");
+
+    if (!resolvedName || (wantsPhotoOnly && !hasAttachments)) return;
 
     const createdRoom = newRoom
         ? await prisma.room.upsert({
@@ -98,9 +108,14 @@ export async function createInventoryItem(formData: FormData) {
 
     const item = await prisma.inventoryItem.create({
         data: {
-            name,
+            name: resolvedName,
             description: description.trim() ? description : null,
+            brand: brandInput.trim() ? brandInput.trim() : null,
+            model: modelInput.trim() ? modelInput.trim() : null,
+            condition: conditionInput.trim() ? conditionInput.trim() : null,
+            serialNumber: serialInput.trim() ? serialInput.trim() : null,
             categories,
+            enrichmentStatus: hasAttachments ? "pending" : "idle",
             rooms: {
                 connect: [...roomIds, createdRoom?.id].filter(Boolean).map((id) => ({ id: id as string })),
             },
@@ -120,6 +135,9 @@ export async function createInventoryItem(formData: FormData) {
     });
 
     revalidatePath("/inventory");
+    if (wantsPhotoOnly || !name) {
+        redirect(`/inventory/${item.id}?quick=1`);
+    }
     redirect("/inventory");
 }
 
@@ -128,11 +146,13 @@ export async function quickAddInventoryItem(formData: FormData) {
     const attachments = formData.getAll("attachments") as File[];
     if (!name) return;
 
+    const hasAttachments = attachments.some((file) => file && file.size > 0);
     const item = await prisma.inventoryItem.create({
         data: {
             name,
             description: null,
             categories: [],
+            enrichmentStatus: hasAttachments ? "pending" : "idle",
         },
     });
 
@@ -151,6 +171,10 @@ export async function quickAddInventoryItem(formData: FormData) {
 export async function updateInventoryItem(itemId: string, formData: FormData) {
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string | null) ?? "";
+    const brandInput = (formData.get("brand") as string | null) ?? "";
+    const modelInput = (formData.get("model") as string | null) ?? "";
+    const conditionInput = (formData.get("condition") as string | null) ?? "";
+    const serialInput = (formData.get("serialNumber") as string | null) ?? "";
     const categories = normalizeCategories(formData.getAll("categories"))
         .filter((category) => DEFAULT_INVENTORY_CATEGORIES.includes(category));
     const roomIds = formData.getAll("rooms").map((value) => value.toString());
@@ -181,6 +205,10 @@ export async function updateInventoryItem(itemId: string, formData: FormData) {
         data: {
             name,
             description: description.trim() ? description : null,
+            brand: brandInput.trim() ? brandInput.trim() : null,
+            model: modelInput.trim() ? modelInput.trim() : null,
+            condition: conditionInput.trim() ? conditionInput.trim() : null,
+            serialNumber: serialInput.trim() ? serialInput.trim() : null,
             categories,
             rooms: {
                 set: [...roomIds, createdRoom?.id].filter(Boolean).map((id) => ({ id: id as string })),
@@ -199,11 +227,38 @@ export async function updateInventoryItem(itemId: string, formData: FormData) {
 }
 
 export async function deleteInventoryItem(itemId: string) {
+    const attachments = await prisma.inventoryAttachment.findMany({
+        where: { itemId },
+    });
     await prisma.inventoryItem.delete({
         where: { id: itemId },
     });
+    await Promise.all(
+        attachments.map(async (attachment) => {
+            if (!attachment.url.startsWith("/uploads/")) return;
+            const absolutePath = path.join(process.cwd(), "public", attachment.url);
+            try {
+                await fs.unlink(absolutePath);
+            } catch {
+                // Ignore missing files.
+            }
+        })
+    );
     revalidatePath("/inventory");
     redirect("/inventory");
+}
+
+export async function requestInventoryEnrichment(itemId: string) {
+    await prisma.inventoryItem.update({
+        where: { id: itemId },
+        data: {
+            enrichmentStatus: "pending",
+            enrichmentError: null,
+            enrichmentUpdatedAt: new Date(),
+        },
+    });
+    await inventoryQueue.add("enrich", { itemId });
+    revalidatePath(`/inventory/${itemId}`);
 }
 
 export async function moveInventoryAttachment(itemId: string, attachmentId: string, direction: "up" | "down") {
@@ -256,6 +311,15 @@ export async function bulkUpdateInventoryItems(formData: FormData) {
     const tagIds = formData.getAll("tags").map((value) => value.toString());
     const newRoom = normalizeRoomName(formData.get("newRoom"));
     const newTag = normalizeTagName(formData.get("newTag"));
+    const clearCategories = formData.get("clearCategories") === "on";
+    const clearRooms = formData.get("clearRooms") === "on";
+    const clearTags = formData.get("clearTags") === "on";
+    const addCategories = formData.get("addCategories") === "on";
+    const addRooms = formData.get("addRooms") === "on";
+    const addTags = formData.get("addTags") === "on";
+    const confirmClear = formData.get("confirmClear") === "on";
+
+    if ((clearCategories || clearRooms || clearTags) && !confirmClear) return;
 
     const createdRoom = newRoom
         ? await prisma.room.upsert({
@@ -275,18 +339,36 @@ export async function bulkUpdateInventoryItems(formData: FormData) {
     const roomConnections = [...roomIds, createdRoom?.id].filter(Boolean).map((id) => ({ id: id as string }));
     const tagConnections = [...tagIds, createdTag?.id].filter(Boolean).map((id) => ({ id: id as string }));
 
-    await prisma.$transaction(
-        ids.map((id) =>
-            prisma.inventoryItem.update({
+    await prisma.$transaction(async (tx) => {
+        for (const id of ids) {
+            const item = await tx.inventoryItem.findUnique({
+                where: { id },
+                select: { categories: true },
+            });
+            const mergedCategories = addCategories && item
+                ? Array.from(new Set([...(item.categories ?? []), ...categories]))
+                : categories;
+
+            await tx.inventoryItem.update({
                 where: { id },
                 data: {
-                    categories: categories.length > 0 ? categories : undefined,
-                    rooms: roomConnections.length > 0 ? { set: roomConnections } : undefined,
-                    tags: tagConnections.length > 0 ? { set: tagConnections } : undefined,
+                    categories: clearCategories
+                        ? []
+                        : (categories.length > 0 ? (addCategories ? mergedCategories : categories) : undefined),
+                    rooms: clearRooms
+                        ? { set: [] }
+                        : (roomConnections.length > 0
+                            ? (addRooms ? { connect: roomConnections } : { set: roomConnections })
+                            : undefined),
+                    tags: clearTags
+                        ? { set: [] }
+                        : (tagConnections.length > 0
+                            ? (addTags ? { connect: tagConnections } : { set: tagConnections })
+                            : undefined),
                 },
-            })
-        )
-    );
+            });
+        }
+    });
 
     revalidatePath("/inventory");
     redirect("/inventory");

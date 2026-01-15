@@ -36,24 +36,35 @@ export async function updateAiProvider(formData: FormData) {
 
 export async function updateAgentConfig(agentId: AgentId, formData: FormData) {
   const model = (formData.get("model") as string | null)?.trim();
-  const prompt = (formData.get("prompt") as string | null) ?? "";
+  const visionModel = (formData.get("visionModel") as string | null)?.trim();
+  const userPrompt = (formData.get("userPrompt") as string | null) ?? "";
   const enabled = formData.get("enabled") === "on";
 
   const fallback = AGENT_PROMPTS.find((agent) => agent.agentId === agentId);
   const modelToUse = model || fallback?.defaultModel || "llama3.1";
-  const promptToUse = prompt.trim() || fallback?.defaultPrompt || "";
+  const visionModelToUse = visionModel || fallback?.defaultVisionModel || modelToUse;
+  const promptToUse = fallback?.defaultPrompt || "";
+  const existing = await prisma.agentConfig.findUnique({ where: { agentId } });
+  const systemPromptToUse = existing?.systemPrompt || promptToUse;
+  const userPromptToUse = userPrompt.trim();
 
   await prisma.agentConfig.upsert({
     where: { agentId },
     create: {
       agentId,
       model: modelToUse,
-      prompt: promptToUse,
+      visionModel: visionModelToUse,
+      prompt: systemPromptToUse,
+      systemPrompt: systemPromptToUse,
+      userPrompt: userPromptToUse,
       enabled,
     },
     update: {
       model: modelToUse,
-      prompt: promptToUse,
+      visionModel: visionModelToUse,
+      prompt: systemPromptToUse,
+      systemPrompt: systemPromptToUse,
+      userPrompt: userPromptToUse,
       enabled,
     },
   });

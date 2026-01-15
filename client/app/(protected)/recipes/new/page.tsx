@@ -9,17 +9,21 @@ import { ArrowLeft } from "lucide-react";
 
 export default function NewRecipePage() {
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-10">
-      <div className="mb-6">
-        <Link href="/recipes" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to Recipes
-        </Link>
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <Link href="/recipes" className="page-eyebrow flex items-center gap-2">
+            <ArrowLeft size={14} /> Back to Recipes
+          </Link>
+          <h1 className="page-title">Add Recipe</h1>
+          <p className="page-subtitle">Save a new favorite.</p>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Add New Recipe</CardTitle>
-          <CardDescription>Save a new favorite.</CardDescription>
+          <CardTitle>Recipe details</CardTitle>
+          <CardDescription>Capture ingredients and instructions.</CardDescription>
         </CardHeader>
         <form action={createRecipe}>
           <CardContent className="space-y-6">

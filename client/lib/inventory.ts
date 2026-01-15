@@ -65,3 +65,15 @@ export const isInventoryComplete = (item: { name?: string | null; categories?: s
   if (rooms.length === 0) return false;
   return true;
 };
+
+export const isInventoryEnrichmentPending = (item: {
+  attachments?: unknown[] | null;
+  categories?: string[] | null;
+  rooms?: unknown[] | null;
+}) => {
+  const attachments = item.attachments ?? [];
+  const categories = item.categories ?? [];
+  const rooms = item.rooms ?? [];
+  if (attachments.length === 0) return false;
+  return categories.length === 0 || rooms.length === 0;
+};

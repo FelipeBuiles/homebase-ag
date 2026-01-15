@@ -14,10 +14,12 @@ export default async function SettingsPage() {
   const requiresCurrent = Boolean(config?.passwordHash);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-10 space-y-8">
-      <div>
-        <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage security and organization options.</p>
+    <div className="page-container space-y-8">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Settings</h1>
+          <p className="page-subtitle">Manage security and organization options.</p>
+        </div>
       </div>
       <AiProviderSettings
         provider={config?.llmProvider}

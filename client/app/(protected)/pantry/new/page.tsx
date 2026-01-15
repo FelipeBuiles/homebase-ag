@@ -8,16 +8,20 @@ import { ArrowLeft } from "lucide-react";
 
 export default function NewPantryItemPage() {
   return (
-    <div className="max-w-xl mx-auto p-4 md:p-10">
-      <div className="mb-6">
-        <Link href="/pantry" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to Pantry
-        </Link>
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <Link href="/pantry" className="page-eyebrow flex items-center gap-2">
+            <ArrowLeft size={14} /> Back to Pantry
+          </Link>
+          <h1 className="page-title">Add Pantry Item</h1>
+          <p className="page-subtitle">Track pantry items and expiration dates.</p>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Add Pantry Item</CardTitle>
+          <CardTitle>Item details</CardTitle>
           <CardDescription>What did you buy?</CardDescription>
         </CardHeader>
         <form action={createPantryItem}>

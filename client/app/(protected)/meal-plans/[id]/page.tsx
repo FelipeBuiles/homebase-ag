@@ -33,17 +33,15 @@ export default async function MealPlanDetailPage(props: { params: Promise<{ id: 
   const mealTypes = ["Breakfast", "Lunch", "Dinner"];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-10">
-      <div className="mb-6">
-        <Link href="/meal-plans" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to Meal Plans
-        </Link>
-      </div>
-
-      <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">
-            Week of {plan.startDate.toLocaleDateString()}
-          </h1>
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <Link href="/meal-plans" className="page-eyebrow flex items-center gap-2">
+            <ArrowLeft size={14} /> Back to Meal Plans
+          </Link>
+          <h1 className="page-title">Week of {plan.startDate.toLocaleDateString()}</h1>
+          <p className="page-subtitle">Plan meals and keep pantry aligned.</p>
+        </div>
       </div>
 
       <div className="overflow-x-auto">

@@ -21,6 +21,9 @@ const extractJson = (input: string) => {
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((entry) => typeof entry === "string");
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
 export const parseAgentResponse = (agentId: AgentId, raw: string) => {
   const data = extractJson(raw);
   if (!data || typeof data !== "object") return null;
@@ -41,14 +44,45 @@ export const parseAgentResponse = (agentId: AgentId, raw: string) => {
     }
     case "agent_enrichment": {
       const categories = (data as { categories?: unknown }).categories;
-      if (!isStringArray(categories)) return null;
-      const confidence = typeof (data as { confidence?: unknown }).confidence === "number"
-        ? (data as { confidence: number }).confidence
+      const rooms = (data as { rooms?: unknown }).rooms;
+      const tags = (data as { tags?: unknown }).tags;
+      if (!isStringArray(categories) || !isStringArray(rooms) || !isStringArray(tags)) return null;
+
+      const name = typeof (data as { name?: unknown }).name === "string"
+        ? (data as { name: string }).name
+        : null;
+      const brand = typeof (data as { brand?: unknown }).brand === "string"
+        ? (data as { brand: string }).brand
+        : null;
+      const model = typeof (data as { model?: unknown }).model === "string"
+        ? (data as { model: string }).model
+        : null;
+      const condition = typeof (data as { condition?: unknown }).condition === "string"
+        ? (data as { condition: string }).condition
+        : null;
+      const serial = typeof (data as { serial?: unknown }).serial === "string"
+        ? (data as { serial: string }).serial
+        : null;
+
+      const confidenceByField = isRecord((data as { confidenceByField?: unknown }).confidenceByField)
+        ? (data as { confidenceByField: Record<string, unknown> }).confidenceByField
         : undefined;
-      const rationale = typeof (data as { rationale?: unknown }).rationale === "string"
-        ? (data as { rationale: string }).rationale
+      const rationaleByField = isRecord((data as { rationaleByField?: unknown }).rationaleByField)
+        ? (data as { rationaleByField: Record<string, unknown> }).rationaleByField
         : undefined;
-      return { categories, confidence, rationale };
+
+      return {
+        categories,
+        rooms,
+        tags,
+        name,
+        brand,
+        model,
+        condition,
+        serial,
+        confidenceByField,
+        rationaleByField,
+      };
     }
     case "agent_expiration": {
       const shouldCreate = (data as { shouldCreate?: unknown }).shouldCreate;
@@ -123,7 +157,10 @@ export const getAgentConfig = async (agentId: AgentId) => {
     data: {
       agentId: fallback.agentId,
       model: fallback.defaultModel,
+      visionModel: fallback.defaultVisionModel ?? fallback.defaultModel,
       prompt: fallback.defaultPrompt,
+      systemPrompt: fallback.defaultPrompt,
+      userPrompt: "",
       enabled: true,
     },
   });
@@ -143,7 +180,16 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
   const truncate = (value: string, limit = 600) =>
     value.length > limit ? `${value.slice(0, limit)}…` : value;
 
-  const prompt = `${config.prompt}\n\nINPUT:\n${input}`;
+  const basePrompt =
+    config.systemPrompt ||
+    config.prompt ||
+    getPromptConfig(agentId)?.defaultPrompt ||
+    "";
+  const userPrompt = config.userPrompt?.trim();
+  const combinedPrompt = userPrompt
+    ? `${basePrompt}\n\nUSER INSTRUCTIONS:\n${userPrompt}`
+    : basePrompt;
+  const prompt = `${combinedPrompt}\n\nINPUT:\n${input}`;
   const start = Date.now();
   try {
     const response = await generateText({

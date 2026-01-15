@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { isInventoryComplete, normalizeCategories, normalizeField, toTitleCase } from "../lib/inventory";
+import {
+  isInventoryComplete,
+  isInventoryEnrichmentPending,
+  normalizeCategories,
+  normalizeField,
+  normalizeRoomName,
+  normalizeTagName,
+  toTitleCase,
+} from "../lib/inventory";
 
 const item = (categories: string[], rooms: string[]) => ({
   name: "Sample",
@@ -22,5 +30,19 @@ describe("inventory helpers", () => {
     expect(isInventoryComplete(item([], ["Kitchen"]))).toBe(false);
     expect(isInventoryComplete(item(["Appliances"], []))).toBe(false);
     expect(isInventoryComplete(item(["Appliances"], ["Kitchen"]))).toBe(true);
+  });
+
+  it("normalizes room and tag names", () => {
+    expect(normalizeRoomName("  living room ")).toBe("Living Room");
+    expect(normalizeRoomName("")).toBeNull();
+    expect(normalizeTagName("  camera ")).toBe("Camera");
+    expect(normalizeTagName(null)).toBeNull();
+  });
+
+  it("flags enrichment pending when attachments exist and required fields are missing", () => {
+    expect(isInventoryEnrichmentPending({ attachments: [] })).toBe(false);
+    expect(isInventoryEnrichmentPending({ attachments: [{}], categories: [], rooms: [] })).toBe(true);
+    expect(isInventoryEnrichmentPending({ attachments: [{}], categories: ["Electronics"], rooms: [] })).toBe(true);
+    expect(isInventoryEnrichmentPending({ attachments: [{}], categories: ["Electronics"], rooms: [{}] })).toBe(false);
   });
 });

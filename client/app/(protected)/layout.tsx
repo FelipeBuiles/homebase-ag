@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Activity, Calendar, Home, Inbox, LogOut, Package, ShoppingCart, Utensils, Box, Settings } from "lucide-react";
+import { Home, LogOut } from "lucide-react";
 import { getAppConfig } from "@/lib/settings";
 import { getSession } from "@/lib/auth";
 import { logout } from "@/app/logout/actions";
 import { Button } from "@/components/ui/button";
+import { NavLink } from "./NavLink";
 
 const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/review", label: "Review", icon: Inbox },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/groceries", label: "Groceries", icon: ShoppingCart },
-  { href: "/pantry", label: "Pantry", icon: Box },
-  { href: "/recipes", label: "Recipes", icon: Utensils },
-  { href: "/meal-plans", label: "Meal Plans", icon: Calendar },
-  { href: "/activity", label: "Activity", icon: Activity },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/", label: "Home", iconName: "home" },
+  { href: "/review", label: "Review", iconName: "review" },
+  { href: "/inventory", label: "Inventory", iconName: "inventory" },
+  { href: "/groceries", label: "Groceries", iconName: "groceries" },
+  { href: "/pantry", label: "Pantry", iconName: "pantry" },
+  { href: "/recipes", label: "Recipes", iconName: "recipes" },
+  { href: "/meal-plans", label: "Meal Plans", iconName: "meal-plans" },
+  { href: "/activity", label: "Activity", iconName: "activity" },
+  { href: "/settings", label: "Settings", iconName: "settings" },
 ];
 
 export default async function ProtectedLayout({
@@ -37,10 +38,10 @@ export default async function ProtectedLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-white/20 bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-soft">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-primary-foreground">
               <Home size={18} />
             </span>
             <div className="leading-tight">
@@ -52,10 +53,7 @@ export default async function ProtectedLayout({
           </Link>
           <nav className="flex flex-wrap items-center gap-2 text-sm font-medium">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="nav-pill">
-                <item.icon size={16} />
-                {item.label}
-              </Link>
+              <NavLink key={item.href} {...item} />
             ))}
             {config.passwordHash && (
               <form action={logout}>

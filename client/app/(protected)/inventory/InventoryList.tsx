@@ -6,14 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { bulkUpdateInventoryItems } from "./actions";
-import { isInventoryComplete } from "@/lib/inventory";
-import { Play } from "lucide-react";
+import { isInventoryComplete, isInventoryEnrichmentPending } from "@/lib/inventory";
+import { Loader2, Play } from "lucide-react";
 
 type RoomOption = { id: string; name: string };
 type TagOption = { id: string; name: string };
 type InventoryItemRow = {
   id: string;
   name: string;
+  brand?: string | null;
+  model?: string | null;
+  condition?: string | null;
+  serialNumber?: string | null;
+  enrichmentStatus?: string | null;
   categories: string[];
   rooms: RoomOption[];
   tags: TagOption[];
@@ -61,7 +66,17 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
               ))}
 
               <div className="space-y-3">
-                <p className="text-sm font-medium">Categories</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Categories</p>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" name="clearCategories" className="h-4 w-4 accent-primary" />
+                    Clear categories
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" name="addCategories" className="h-4 w-4 accent-primary" />
+                  Add to existing
+                </label>
                 <div className="grid gap-2 md:grid-cols-3">
                   {categories.map((category) => (
                     <label key={category} className="flex items-center gap-2 text-sm">
@@ -73,7 +88,17 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm font-medium">Rooms</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Rooms</p>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" name="clearRooms" className="h-4 w-4 accent-primary" />
+                    Clear rooms
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" name="addRooms" className="h-4 w-4 accent-primary" />
+                  Add to existing
+                </label>
                 <div className="grid gap-2 md:grid-cols-3">
                   {rooms.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No rooms yet.</p>
@@ -97,7 +122,17 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm font-medium">Tags</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Tags</p>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input type="checkbox" name="clearTags" className="h-4 w-4 accent-primary" />
+                    Clear tags
+                  </label>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" name="addTags" className="h-4 w-4 accent-primary" />
+                  Add to existing
+                </label>
                 <div className="grid gap-2 md:grid-cols-3">
                   {tags.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No tags yet.</p>
@@ -120,7 +155,13 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
                 </div>
               </div>
 
-              <Button type="submit">Apply updates</Button>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input type="checkbox" name="confirmClear" className="h-4 w-4 accent-primary" />
+                  Confirm clearing fields (required if any clear is selected)
+                </label>
+                <Button type="submit">Apply updates</Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -139,7 +180,13 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 stagger">
         {items.map((item) => {
           const complete = isInventoryComplete(item);
+          const enrichmentPending = isInventoryEnrichmentPending(item);
+          const needsCategory = item.categories.length === 0;
+          const needsRoom = item.rooms.length === 0;
           const primaryAttachment = item.attachments[0];
+          const titleParts = [item.brand, item.model].filter(Boolean).join(" ");
+          const hasMetadata = Boolean(titleParts || item.serialNumber || item.condition);
+          const enrichmentStatus = item.enrichmentStatus ?? "idle";
           return (
             <Card key={item.id} className="group hover:border-primary/50 transition-colors">
               <CardHeader className="pb-2">
@@ -167,6 +214,19 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
                   <CardDescription className="mt-1">
                     {item.rooms.length > 0 ? item.rooms.map((room) => room.name).join(" • ") : "No rooms yet"}
                   </CardDescription>
+                  {hasMetadata && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {titleParts && <span>{titleParts}</span>}
+                      {item.serialNumber && (
+                        <span className={titleParts ? "ml-2 font-mono" : "font-mono"}>#{item.serialNumber}</span>
+                      )}
+                    </div>
+                  )}
+                  {enrichmentPending && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Enrichment pending…
+                    </div>
+                  )}
                 </div>
                 <input
                   type="checkbox"
@@ -187,9 +247,39 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
                     </Badge>
                   ))
                 )}
-                <Badge variant={complete ? "default" : "outline"}>
-                  {complete ? "Complete" : "Needs details"}
-                </Badge>
+                {enrichmentStatus === "pending" && (
+                  <Badge variant="outline">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Queued
+                    </span>
+                  </Badge>
+                )}
+                {enrichmentStatus === "running" && (
+                  <Badge variant="secondary">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Enriching
+                    </span>
+                  </Badge>
+                )}
+                {enrichmentStatus === "failed" && (
+                  <Badge variant="destructive">Enrichment failed</Badge>
+                )}
+                {item.condition && <Badge variant="outline">{item.condition}</Badge>}
+                {enrichmentPending ? (
+                  <Badge variant="secondary">Enriching</Badge>
+                ) : (
+                  <Badge variant={complete ? "default" : "outline"}>
+                    {complete ? "Complete" : "Needs details"}
+                  </Badge>
+                )}
+                {!complete && (
+                  <>
+                    {needsCategory && <Badge variant="outline">Needs category</Badge>}
+                    {needsRoom && <Badge variant="outline">Needs room</Badge>}
+                  </>
+                )}
               </div>
               {item.tags.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">

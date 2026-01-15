@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { deleteRecipe } from "../actions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function getRecipe(id: string) {
     try {
@@ -24,24 +25,28 @@ export default async function RecipeDetailPage(props: { params: Promise<{ id: st
   if (!recipe) return notFound();
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-10">
-       {/* Header Navigation */}
-      <div className="mb-6 flex justify-between items-center">
-        <Link href="/recipes" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to Recipes
-        </Link>
-        <form action={deleteRecipe.bind(null, recipe.id)}>
-             <Button variant="destructive" size="sm" className="gap-2">
-                 <Trash2 size={14} /> Delete
-             </Button>
-        </form>
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <Link href="/recipes" className="page-eyebrow flex items-center gap-2">
+            <ArrowLeft size={14} /> Back to Recipes
+          </Link>
+          <h1 className="page-title">{recipe.name}</h1>
+          <p className="page-subtitle">Recipe details and instructions.</p>
+        </div>
+        <div className="page-actions">
+          <form action={deleteRecipe.bind(null, recipe.id)}>
+            <Button variant="destructive" size="sm" className="gap-2">
+              <Trash2 size={14} /> Delete
+            </Button>
+          </form>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="md:col-span-2 space-y-8">
             <div>
-                <h1 className="text-4xl md:text-5xl font-serif font-semibold text-foreground mb-2">{recipe.name}</h1>
                 {recipe.sourceUrl && (
                     <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1 text-sm">
                         <ExternalLink size={14} /> View Source
@@ -59,20 +64,24 @@ export default async function RecipeDetailPage(props: { params: Promise<{ id: st
         </div>
 
         {/* Sidebar / Ingredients */}
-        <div className="bg-muted/30 p-6 rounded-2xl h-fit shadow-soft">
-            <h3 className="text-lg font-bold mb-4">Ingredients ({recipe.ingredients.length})</h3>
+        <Card className="h-fit">
+          <CardHeader>
+            <CardTitle className="text-lg">Ingredients ({recipe.ingredients.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
             <ul className="space-y-2">
-                {recipe.ingredients.map(ing => (
-                    <li key={ing.id} className="flex items-start gap-2 text-sm border-b border-border/50 pb-2 last:border-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                        <span>
-                            {ing.quantity && <span className="font-semibold">{ing.quantity} {ing.unit} </span>}
-                            {ing.name}
-                        </span>
-                    </li>
-                ))}
+              {recipe.ingredients.map(ing => (
+                <li key={ing.id} className="flex items-start gap-2 text-sm border-b border-border/50 pb-2 last:border-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                  <span>
+                    {ing.quantity && <span className="font-semibold">{ing.quantity} {ing.unit} </span>}
+                    {ing.name}
+                  </span>
+                </li>
+              ))}
             </ul>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

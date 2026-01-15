@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
 import { addItemToList } from "../actions";
@@ -30,33 +31,36 @@ export default async function GroceryListPage(props: { params: Promise<{ id: str
   if (!list) return notFound();
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-10">
-      <div className="mb-6">
-        <Link href="/groceries" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to Lists
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div className="page-container">
+      <div className="page-header">
         <div>
-           <h1 className="text-3xl md:text-4xl font-serif font-semibold text-foreground">{list.name}</h1>
-           <p className="text-muted-foreground">{list.items.filter(i => !i.isChecked).length} remaining items</p>
+          <Link href="/groceries" className="page-eyebrow flex items-center gap-2">
+            <ArrowLeft size={14} /> Back to Lists
+          </Link>
+          <h1 className="page-title">{list.name}</h1>
+          <p className="page-subtitle">{list.items.filter(i => !i.isChecked).length} remaining items</p>
         </div>
       </div>
 
       {/* Add Item Form */}
-      <div className="mb-8 p-4 bg-muted/50 rounded-2xl shadow-soft">
-        <form action={addItemToList.bind(null, list.id)} className="flex gap-2">
-            <Input name="name" placeholder="Item Name (e.g. Milk)" className="flex-1" required autoFocus />
-            <Input name="quantity" placeholder="Qty" className="w-24" />
-            <Button type="submit"><Plus size={16} /> Add</Button>
-        </form>
-      </div>
+      <Card className="mb-8">
+        <CardContent className="pt-6">
+          <form action={addItemToList.bind(null, list.id)} className="flex flex-wrap gap-2">
+              <Input name="name" placeholder="Item Name (e.g. Milk)" className="flex-1 min-w-[200px]" required autoFocus />
+              <Input name="quantity" placeholder="Qty" className="w-24" />
+              <Button type="submit"><Plus size={16} /> Add</Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Items List */}
       <div className="space-y-1">
         {list.items.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">List is empty. Add something above!</div>
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center text-muted-foreground">
+                List is empty. Add something above.
+              </CardContent>
+            </Card>
         )}
         {list.items.map(item => (
             <GroceryItemRow key={item.id} item={item} />

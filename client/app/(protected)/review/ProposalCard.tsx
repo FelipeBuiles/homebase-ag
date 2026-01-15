@@ -18,6 +18,7 @@ export function ProposalCard({ proposal }: Props) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState(() => proposal.changes.map((c) => c.id));
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) =>
@@ -30,6 +31,7 @@ export function ProposalCard({ proposal }: Props) {
 
   const handleApply = async () => {
     setLoading(true);
+    setNotice("Applied changes. Refreshing...");
     await approveSelectedChanges(proposal.id, selectedIds);
     setLoading(false);
     router.refresh();
@@ -37,6 +39,7 @@ export function ProposalCard({ proposal }: Props) {
 
   const handleReject = async () => {
     setLoading(true);
+    setNotice("Rejected proposal. Refreshing...");
     await rejectProposal(proposal.id);
     setLoading(false);
     router.refresh();
@@ -47,6 +50,11 @@ export function ProposalCard({ proposal }: Props) {
   return (
     <Card className="border-l-4 border-l-primary/50">
       <CardHeader>
+        {notice && (
+          <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+            {notice}
+          </div>
+        )}
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <Badge variant="secondary" className="mb-2">{proposal.agentId}</Badge>
