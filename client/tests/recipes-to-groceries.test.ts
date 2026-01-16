@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import prisma from "../lib/prisma";
 import { resetDb } from "./utils/db";
 import { addRecipeIngredientsToGroceries } from "../lib/recipes-to-groceries";
+
+vi.mock("../lib/queue", () => ({
+  groceryQueue: { add: vi.fn() },
+}));
 
 describe("addRecipeIngredientsToGroceries", () => {
   afterEach(async () => {
@@ -36,5 +40,30 @@ describe("addRecipeIngredientsToGroceries", () => {
     const result = await addRecipeIngredientsToGroceries(recipe.id);
     expect(result.addedCount).toBe(0);
     expect(result.mergedCount).toBe(0);
+  });
+});
+
+describe("addRecipeIngredientsToGroceries queueing", () => {
+  afterEach(async () => {
+    const { groceryQueue } = await import("../lib/queue");
+    vi.mocked(groceryQueue.add).mockClear();
+    await resetDb();
+  });
+
+  it("enqueues normalization for new items", async () => {
+    const recipe = await prisma.recipe.create({
+      data: {
+        name: "Soup",
+        status: "ready",
+        ingredients: { create: [{ name: "Carrots" }] },
+      },
+    });
+
+    await addRecipeIngredientsToGroceries(recipe.id);
+
+    const { groceryQueue } = await import("../lib/queue");
+    expect(vi.mocked(groceryQueue.add)).toHaveBeenCalledWith("created", expect.objectContaining({
+      name: "Carrots",
+    }));
   });
 });

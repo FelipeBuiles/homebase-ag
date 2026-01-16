@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { buildCanonicalKey, getOrCreateDefaultGroceryList } from "@/lib/groceries";
+import { groceryQueue } from "@/lib/queue";
 
 export async function addRecipeIngredientsToGroceries(recipeId: string) {
   const recipe = await prisma.recipe.findUnique({
@@ -46,7 +47,7 @@ export async function addRecipeIngredientsToGroceries(recipeId: string) {
       continue;
     }
 
-    await prisma.groceryItem.create({
+    const created = await prisma.groceryItem.create({
       data: {
         name,
         normalizedName: name,
@@ -57,6 +58,7 @@ export async function addRecipeIngredientsToGroceries(recipeId: string) {
       },
     });
 
+    await groceryQueue.add("created", { itemId: created.id, name });
     addedCount += 1;
   }
 
