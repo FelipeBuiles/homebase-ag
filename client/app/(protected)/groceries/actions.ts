@@ -87,3 +87,19 @@ export async function mergeGroceryItems(formData: FormData) {
 
     revalidatePath("/groceries");
 }
+
+export async function clearCheckedItems() {
+    const list = await getOrCreateDefaultGroceryList();
+    await prisma.groceryItem.deleteMany({
+        where: { listId: list.id, isChecked: true },
+    });
+    revalidatePath("/groceries");
+}
+
+export async function clearAllItems() {
+    const list = await getOrCreateDefaultGroceryList();
+    await prisma.groceryItem.deleteMany({
+        where: { listId: list.id },
+    });
+    revalidatePath("/groceries");
+}
