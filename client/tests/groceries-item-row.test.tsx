@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("GroceryItemRow", () => {
-  it("shows normalized name as title and original below", () => {
+  it("shows normalized name as title without original label", () => {
     const item = {
       id: "1",
       name: "Green onions",
@@ -34,6 +34,6 @@ describe("GroceryItemRow", () => {
     render(<GroceryItemRow item={item} />);
 
     expect(screen.getByText("Scallions")).toBeTruthy();
-    expect(screen.getByText(/original:\s*green onions/i)).toBeTruthy();
+    expect(screen.queryByText(/original/i)).toBeNull();
   });
 });

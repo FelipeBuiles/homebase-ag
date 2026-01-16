@@ -43,9 +43,6 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                             </Badge>
                         )}
                     </div>
-                    {item.normalizedName && item.normalizedName !== item.name && (
-                        <span className="text-xs text-muted-foreground">Original: {item.name}</span>
-                    )}
                     <span className="text-xs text-muted-foreground">{item.quantity} {item.category}</span>
                 </div>
             </div>
