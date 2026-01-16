@@ -1,5 +1,6 @@
 import { generateText } from "ai";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { AGENT_PROMPTS, type AgentId } from "@/lib/agent-prompts";
 import { getProviderClient, resolveEffectiveConfig, resolveProviderConfig } from "@/lib/llm-providers";
 
@@ -187,6 +188,10 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
           visionModelOverride: config.visionModelOverride,
         }
       : null,
+    agentDefaults: {
+      model: config?.model,
+      visionModel: config?.visionModel,
+    },
   });
   const modelName =
     effectiveConfig.model || config.model || getPromptConfig(agentId)?.defaultModel || "llama3.1";
@@ -199,6 +204,17 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
   const providerClient = getProviderClient({ provider, baseUrl, apiKey });
   const truncate = (value: string, limit = 600) =>
     value.length > limit ? `${value.slice(0, limit)}…` : value;
+  const toJsonValue = (value: unknown): Prisma.InputJsonValue | null => {
+    if (value === null) return null;
+    const valueType = typeof value;
+    if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+      return value as Prisma.InputJsonValue;
+    }
+    if (Array.isArray(value) || valueType === "object") {
+      return value as Prisma.InputJsonValue;
+    }
+    return null;
+  };
 
   const basePrompt =
     config.systemPrompt ||
@@ -221,6 +237,7 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
     const data = parseAgentResponse(agentId, raw);
     const toolCalls = (response as { toolCalls?: unknown[] }).toolCalls;
     const usage = (response as { usage?: unknown }).usage;
+    const usageValue = toJsonValue(usage);
     const durationMs = Date.now() - start;
 
     await prisma.auditLog.create({
@@ -245,7 +262,7 @@ export const runAgentPrompt = async (agentId: AgentId, input: string) => {
           promptChars: prompt.length,
           responseChars: raw.length,
           functionCalls: Array.isArray(toolCalls) ? toolCalls.length : 0,
-          usage,
+          usage: usageValue,
         },
       },
     });

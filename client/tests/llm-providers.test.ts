@@ -20,7 +20,17 @@ describe("llm provider resolution", () => {
       agentProviderOverride: "openrouter",
     });
     expect(resolved.provider).toBe("openrouter");
-    expect(resolved.baseUrl).toBe("https://openrouter.ai/api/v1");
+    expect(resolved.baseUrl).toBeUndefined();
+  });
+
+  it("clears baseUrl for non-ollama/custom providers", () => {
+    const resolved = resolveProviderConfig({
+      globalProvider: "openai",
+      baseUrl: "http://localhost:11434",
+      apiKey: "sk-test",
+      agentProviderOverride: null,
+    });
+    expect(resolved.baseUrl).toBeUndefined();
   });
 });
 
@@ -48,6 +58,28 @@ describe("effective config resolution", () => {
     });
     expect(resolved.model).toBe("openrouter/gpt-4o-mini");
     expect(resolved.provider).toBe("openrouter");
+  });
+
+  it("falls back to agent defaults when overrides are enabled but empty", () => {
+    const resolved = resolveEffectiveConfig({
+      global: {
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        visionModel: "gpt-4.1-mini",
+      },
+      agent: {
+        overrideEnabled: true,
+        providerOverride: "openrouter",
+        modelOverride: null,
+        visionModelOverride: null,
+      },
+      agentDefaults: {
+        model: "llama3.1",
+        visionModel: "llama3.1",
+      },
+    });
+    expect(resolved.model).toBe("llama3.1");
+    expect(resolved.visionModel).toBe("llama3.1");
   });
 });
 

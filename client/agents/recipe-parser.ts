@@ -14,6 +14,27 @@ const stripHtml = (value: string) =>
         .replace(/\s+/g, " ")
         .trim();
 
+const isStringArray = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((entry) => typeof entry === "string");
+
+const isParsedRecipePayload = (
+    value: unknown
+): value is { name: string; description: string; ingredients: string[]; instructions: string[] } => {
+    if (!value || typeof value !== "object") return false;
+    const record = value as {
+        name?: unknown;
+        description?: unknown;
+        ingredients?: unknown;
+        instructions?: unknown;
+    };
+    return (
+        typeof record.name === "string"
+        && typeof record.description === "string"
+        && isStringArray(record.ingredients)
+        && isStringArray(record.instructions)
+    );
+};
+
 const processJob = async (job: Job) => {
     const { recipeId, sourceUrl, content } = job.data;
     console.log(`Processing recipe: ${recipeId} (${sourceUrl || 'No URL'})`);
@@ -42,13 +63,13 @@ const processJob = async (job: Job) => {
             `Recipe content:\n${recipeContent}`
         );
 
-        if (!data) {
+        if (!data || !isParsedRecipePayload(data)) {
             console.log("Failed to parse recipe content.");
             await prisma.recipe.update({
                 where: { id: recipeId },
                 data: {
                     parsingStatus: "error",
-                    parsingError: "Parser returned no data",
+                    parsingError: data ? "Parser returned invalid data" : "Parser returned no data",
                     parsingUpdatedAt: new Date(),
                 },
             });

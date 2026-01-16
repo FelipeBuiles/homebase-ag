@@ -41,6 +41,10 @@ type EffectiveConfigInput = {
     modelOverride?: string | null;
     visionModelOverride?: string | null;
   } | null;
+  agentDefaults?: {
+    model?: string | null;
+    visionModel?: string | null;
+  } | null;
 };
 
 export const normalizeProvider = (value?: string | null): ProviderKind => {
@@ -59,11 +63,8 @@ export const resolveProviderConfig = ({
 }: ProviderConfigInput) => {
   const provider = normalizeProvider(agentProviderOverride || globalProvider);
   const trimmedBaseUrl = baseUrl?.trim();
-  const resolvedBaseUrl = trimmedBaseUrl
-    ? trimmedBaseUrl
-    : provider === "openrouter"
-      ? "https://openrouter.ai/api/v1"
-      : undefined;
+  const needsBaseUrl = provider === "ollama" || provider === "custom";
+  const resolvedBaseUrl = needsBaseUrl ? trimmedBaseUrl || undefined : undefined;
 
   return {
     provider,
@@ -91,16 +92,18 @@ export const getProviderClient = ({ provider, baseUrl, apiKey }: ProviderClientI
   }
 };
 
-export const resolveEffectiveConfig = ({ global, agent }: EffectiveConfigInput) => {
+export const resolveEffectiveConfig = ({ global, agent, agentDefaults }: EffectiveConfigInput) => {
   const shouldOverride = Boolean(agent?.overrideEnabled);
+  const fallbackModel = agentDefaults?.model?.trim();
+  const fallbackVisionModel = agentDefaults?.visionModel?.trim();
   const provider = shouldOverride
     ? normalizeProvider(agent?.providerOverride || global.provider)
     : normalizeProvider(global.provider);
   const model = shouldOverride
-    ? agent?.modelOverride?.trim() || global.model?.trim()
+    ? agent?.modelOverride?.trim() || fallbackModel || global.model?.trim()
     : global.model?.trim();
   const visionModel = shouldOverride
-    ? agent?.visionModelOverride?.trim() || global.visionModel?.trim()
+    ? agent?.visionModelOverride?.trim() || fallbackVisionModel || global.visionModel?.trim()
     : global.visionModel?.trim();
 
   return {

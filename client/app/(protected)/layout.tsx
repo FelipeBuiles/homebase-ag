@@ -17,7 +17,7 @@ const navItems = [
   { href: "/meal-plans", label: "Meal Plans", iconName: "meal-plans" },
   { href: "/activity", label: "Activity", iconName: "activity" },
   { href: "/settings", label: "Settings", iconName: "settings" },
-];
+] as const;
 
 export default async function ProtectedLayout({
   children,

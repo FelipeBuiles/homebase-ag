@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-type ParsingStatus = "idle" | "pending" | "parsing" | "filled" | "error";
+import type { ParsingStatus } from "@/lib/recipes-status";
 
 type PendingRecipeCardProps = {
   parsingStatus?: ParsingStatus | null;

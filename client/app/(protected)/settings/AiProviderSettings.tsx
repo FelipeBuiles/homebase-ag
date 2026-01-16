@@ -23,7 +23,7 @@ const PROVIDER_OPTIONS = [
   { value: "custom", label: "Custom" },
 ] as const;
 
-const KNOWN_PROVIDERS = new Set(
+const KNOWN_PROVIDERS = new Set<string>(
   PROVIDER_OPTIONS.filter((option) => option.value !== "custom").map((option) => option.value)
 );
 
@@ -56,6 +56,8 @@ export function AiProviderSettings({ provider, baseUrl, apiKey, model, visionMod
     if (selectedProvider !== "custom") return selectedProvider;
     return customProvider.trim() || "custom";
   }, [customProvider, selectedProvider]);
+  const shouldUseBaseUrl = selectedProvider === "ollama" || selectedProvider === "custom";
+  const baseUrlDefault = shouldUseBaseUrl ? baseUrl ?? "http://localhost:11434" : "";
 
   return (
     <Card className="bg-card/80">
@@ -84,11 +86,11 @@ export function AiProviderSettings({ provider, baseUrl, apiKey, model, visionMod
             <label className="text-sm font-medium">Base URL</label>
             <Input
               name="baseUrl"
-              defaultValue={baseUrl ?? "http://localhost:11434"}
+              defaultValue={baseUrlDefault}
               placeholder="http://localhost:11434"
             />
             <p className="text-xs text-muted-foreground">
-              Used for Ollama, custom, or OpenAI-compatible gateways.
+              Used for Ollama or custom OpenAI-compatible gateways.
             </p>
           </div>
           {selectedProvider === "custom" && (

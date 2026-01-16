@@ -13,7 +13,7 @@ import { RecipeModalForm } from "./RecipeModalForm";
 import { createRecipeDraft } from "./actions";
 
 type RecipeModalProps = {
-  onImport?: (url: string) => void | Promise<void>;
+  onImport?: (url: string) => void | Promise<void | string | { id: string }>;
 };
 
 export function RecipeModal({ onImport }: RecipeModalProps) {

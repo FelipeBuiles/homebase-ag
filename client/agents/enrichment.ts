@@ -70,7 +70,7 @@ const analyzeAttachment = async (
                     role: "user",
                     content: [
                         { type: "text", text: buildVisionPrompt() },
-                        { type: "image", image: resized, mimeType: "image/jpeg" },
+                        { type: "image", image: resized, mediaType: "image/jpeg" },
                     ],
                 },
             ],
@@ -150,6 +150,10 @@ setupWorker("inventory", async (job: Job) => {
                             visionModelOverride: config.visionModelOverride,
                         }
                         : null,
+                    agentDefaults: {
+                        model: config?.model,
+                        visionModel: config?.visionModel,
+                    },
                 });
                 const modelName = effectiveConfig.visionModel
                     ?? config?.visionModel
@@ -317,7 +321,6 @@ setupWorker("inventory", async (job: Job) => {
             itemModel: item.model,
             tags: tagsFromAgent,
         });
-        const isProposedNameGeneric = Boolean(proposedName) && isGenericName(proposedName);
         const nameConfidenceOverride = usedFallback ? 0.7 : nameConfidence;
         const nameProposalAllowed = proposedNameToApply
             && !isGenericName(proposedNameToApply)

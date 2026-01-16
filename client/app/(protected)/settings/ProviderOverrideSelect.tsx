@@ -23,7 +23,7 @@ const PROVIDER_OPTIONS = [
   { value: "custom", label: "Custom" },
 ] as const;
 
-const KNOWN_PROVIDERS = new Set(
+const KNOWN_PROVIDERS = new Set<string>(
   PROVIDER_OPTIONS.filter((option) => option.value !== GLOBAL_VALUE && option.value !== "custom")
     .map((option) => option.value)
 );

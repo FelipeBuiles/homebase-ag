@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createRecipe, finalizeRecipe, updateRecipeDraft } from "./actions";
+import type { ParsingStatus } from "@/lib/recipes-status";
 
 type RecipeModalFormProps = {
-  onImport?: (url: string) => void | Promise<void>;
+  onImport?: (url: string) => void | Promise<void | string | { id: string }>;
 };
 
 export function RecipeModalForm({ onImport }: RecipeModalFormProps) {
@@ -19,7 +20,7 @@ export function RecipeModalForm({ onImport }: RecipeModalFormProps) {
   const [sourceUrl, setSourceUrl] = useState("");
   const [importStatus, setImportStatus] = useState<"idle" | "parsing" | "done" | "error">("idle");
   const [recipeId, setRecipeId] = useState<string | null>(null);
-  const [parsingStatus, setParsingStatus] = useState<"idle" | "pending" | "parsing" | "filled" | "error">("idle");
+  const [parsingStatus, setParsingStatus] = useState<ParsingStatus>("idle");
   const [hasHydrated, setHasHydrated] = useState(false);
   const [formValues, setFormValues] = useState({
     name: "",
@@ -76,6 +77,9 @@ export function RecipeModalForm({ onImport }: RecipeModalFormProps) {
     }
   };
 
+  const isParsingStatus = (value: string): value is ParsingStatus =>
+    ["idle", "pending", "parsing", "filled", "error"].includes(value);
+
   useEffect(() => {
     if (!recipeId || importStatus !== "parsing") return;
 
@@ -87,7 +91,7 @@ export function RecipeModalForm({ onImport }: RecipeModalFormProps) {
         const data = await response.json();
         if (!isActive) return;
         const status = data.parsingStatus as string | undefined;
-        if (status) {
+        if (status && isParsingStatus(status)) {
           setParsingStatus(status);
           if (status === "filled") {
             setImportStatus("done");

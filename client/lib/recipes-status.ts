@@ -1,5 +1,5 @@
-type RecipeStatus = "draft" | "ready" | string;
-type ParsingStatus = "idle" | "pending" | "parsing" | "filled" | "error" | string;
+export type RecipeStatus = "draft" | "ready" | string;
+export type ParsingStatus = "idle" | "pending" | "parsing" | "filled" | "error" | string;
 
 type PendingInput = {
   status?: RecipeStatus | null;

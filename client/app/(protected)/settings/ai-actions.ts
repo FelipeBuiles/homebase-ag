@@ -16,6 +16,19 @@ export async function updateAiProvider(formData: FormData) {
   const model = (formData.get("model") as string | null)?.trim();
   const visionModel = (formData.get("visionModel") as string | null)?.trim();
   const id = await getConfigId();
+  const normalizedProvider = provider.trim().toLowerCase();
+  const isKnownProvider = [
+    "ollama",
+    "openai",
+    "anthropic",
+    "gemini",
+    "deepseek",
+    "openrouter",
+    "custom",
+  ].includes(normalizedProvider);
+  const providerKind = isKnownProvider ? normalizedProvider : "custom";
+  const needsBaseUrl = providerKind === "ollama" || providerKind === "custom";
+  const storedBaseUrl = needsBaseUrl ? baseUrl || "http://localhost:11434" : null;
 
   await prisma.appConfig.upsert({
     where: { id },
@@ -23,14 +36,14 @@ export async function updateAiProvider(formData: FormData) {
       id,
       setupComplete: true,
       llmProvider: provider,
-      llmBaseUrl: baseUrl || "http://localhost:11434",
+      llmBaseUrl: storedBaseUrl,
       llmApiKey: apiKey || null,
       llmModel: model || null,
       llmVisionModel: visionModel || null,
     },
     update: {
       llmProvider: provider,
-      llmBaseUrl: baseUrl || "http://localhost:11434",
+      llmBaseUrl: storedBaseUrl,
       llmApiKey: apiKey || null,
       llmModel: model || null,
       llmVisionModel: visionModel || null,

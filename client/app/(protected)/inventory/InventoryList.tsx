@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -193,11 +194,16 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
                 {primaryAttachment && (
                   <div className="mb-3 overflow-hidden rounded-xl border border-border/60 bg-background/60">
                     {primaryAttachment.kind === "photo" ? (
-                      <img
-                        src={primaryAttachment.url}
-                        alt={`${item.name} attachment`}
-                        className="h-32 w-full object-cover"
-                      />
+                      <div className="relative h-32 w-full">
+                        <Image
+                          src={primaryAttachment.url}
+                          alt={`${item.name} attachment`}
+                          fill
+                          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
                     ) : (
                       <div className="flex h-32 items-center justify-center bg-muted text-muted-foreground">
                         <Play className="h-6 w-6" />

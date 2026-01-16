@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -199,11 +200,16 @@ export default async function InventoryDetailPage(props: { params: Promise<{ id:
               return (
               <div key={attachment.id} className="rounded-2xl border border-border/60 bg-background/70 p-3">
                 {attachment.kind === "photo" ? (
-                  <img
-                    src={attachment.url}
-                    alt={`${item.name} attachment`}
-                    className="h-40 w-full rounded-xl object-cover"
-                  />
+                  <div className="relative h-40 w-full overflow-hidden rounded-xl">
+                    <Image
+                      src={attachment.url}
+                      alt={`${item.name} attachment`}
+                      fill
+                      sizes="(min-width: 1024px) 50vw, 100vw"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
                 ) : (
                   <video src={attachment.url} className="h-40 w-full rounded-xl object-cover" controls />
                 )}

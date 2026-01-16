@@ -23,4 +23,13 @@ describe("settings actions", () => {
     const config = await prisma.agentConfig.findUnique({ where: { agentId: "agent_enrichment" } });
     expect(config?.overrideEnabled).toBe(true);
   });
+
+  it("clears base url for non-local providers", async () => {
+    const form = new FormData();
+    form.set("provider", "openai");
+    form.set("baseUrl", "http://localhost:11434");
+    await updateAiProvider(form);
+    const app = await prisma.appConfig.findFirst();
+    expect(app?.llmBaseUrl).toBeNull();
+  });
 });

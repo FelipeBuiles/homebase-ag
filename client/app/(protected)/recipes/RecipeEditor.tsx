@@ -69,7 +69,14 @@ export function RecipeEditor({ recipe }: RecipeEditorProps) {
   const [ingredients, setIngredients] = useState<IngredientRow[]>(initialIngredients);
 
   const ingredientPayload = useMemo(
-    () => JSON.stringify(ingredients.map(({ id, ...rest }) => rest)),
+    () =>
+      JSON.stringify(
+        ingredients.map(({ name, quantity, unit }) => ({
+          name,
+          quantity,
+          unit,
+        }))
+      ),
     [ingredients]
   );
 
