@@ -1,4 +1,4 @@
-import prisma from "../../lib/prisma";
+import prisma from "@/lib/prisma";
 
 export const resetDb = async () => {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`

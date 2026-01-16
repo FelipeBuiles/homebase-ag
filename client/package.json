@@ -14,7 +14,7 @@
     "agent:chef": "tsx agents/chef.ts",
     "trigger:agent": "tsx scripts/trigger-agent.ts",
     "dev:all": "bash scripts/dev-all.sh",
-    "test": "vitest run"
+    "test": "bash scripts/test.sh"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.14",
