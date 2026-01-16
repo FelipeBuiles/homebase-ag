@@ -6,6 +6,8 @@ import { Plus } from "lucide-react";
 import { addGroceryItem } from "./actions";
 import { GroceryItemRow } from "./ItemRow";
 import { getOrCreateDefaultGroceryList } from "@/lib/groceries";
+import { findDuplicateGroups } from "@/lib/groceries-duplicates";
+import { mergeGroceryItems } from "./actions";
 
 async function getDefaultList() {
   const list = await getOrCreateDefaultGroceryList();
@@ -17,6 +19,14 @@ async function getDefaultList() {
 
 export default async function GroceriesPage() {
   const list = await getDefaultList();
+  const duplicateGroups = findDuplicateGroups(
+    list?.items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      canonicalKey: item.canonicalKey,
+      normalizedName: item.normalizedName,
+    })) ?? []
+  );
 
   return (
     <div className="page-container">
@@ -38,6 +48,36 @@ export default async function GroceriesPage() {
           </form>
         </CardContent>
       </Card>
+
+      {duplicateGroups.length > 0 && (
+        <Card className="mb-8">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">Review duplicates</h2>
+              <p className="text-sm text-muted-foreground">
+                Merge items that refer to the same ingredient.
+              </p>
+            </div>
+            {duplicateGroups.map((group) => (
+              <div key={group.key} className="rounded-2xl border border-border/60 p-4 space-y-3">
+                <div className="text-sm font-semibold text-foreground">
+                  {group.items[0]?.normalizedName || group.key}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {group.items.map((item) => item.name).join(", ")}
+                </div>
+                <form action={mergeGroceryItems} className="flex items-center gap-2">
+                  <input type="hidden" name="targetId" value={group.items[0].id} />
+                  {group.items.slice(1).map((item) => (
+                    <input key={item.id} type="hidden" name="sourceIds" value={item.id} />
+                  ))}
+                  <Button size="sm" type="submit">Merge into {group.items[0].name}</Button>
+                </form>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-1">
         {list?.items.length === 0 && (

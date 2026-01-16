@@ -48,3 +48,42 @@ export async function deleteItem(itemId: string) {
 
     revalidatePath("/groceries");
 }
+
+export async function mergeGroceryItems(formData: FormData) {
+    const targetId = formData.get("targetId") as string;
+    const sourceIds = formData.getAll("sourceIds").map(String);
+
+    if (!targetId || sourceIds.length === 0) return;
+
+    await prisma.$transaction(async (tx) => {
+        const target = await tx.groceryItem.findUnique({ where: { id: targetId } });
+        if (!target) return;
+
+        const sources = await tx.groceryItem.findMany({
+            where: { id: { in: sourceIds } },
+        });
+
+        if (sources.length === 0) return;
+
+        const mergedFrom = [
+            ...(Array.isArray(target.mergedFrom) ? target.mergedFrom : []),
+            ...sources.map((source) => ({
+                id: source.id,
+                name: source.name,
+                normalizedName: source.normalizedName,
+                quantity: source.quantity,
+            })),
+        ];
+
+        await tx.groceryItem.update({
+            where: { id: targetId },
+            data: { mergedFrom },
+        });
+
+        await tx.groceryItem.deleteMany({
+            where: { id: { in: sourceIds } },
+        });
+    });
+
+    revalidatePath("/groceries");
+}

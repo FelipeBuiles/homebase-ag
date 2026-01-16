@@ -7,6 +7,7 @@ import { toggleItemCheck, deleteItem } from "./actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { GroceryItem } from "@prisma/client";
+import { Badge } from "@/components/ui/badge";
 
 export function GroceryItemRow({ item }: { item: GroceryItem }) {
     const router = useRouter();
@@ -32,9 +33,19 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                     onCheckedChange={handleCheck}
                 />
                 <div className={checked ? "text-muted-foreground line-through" : ""}>
-                    <label htmlFor={`item-${item.id}`} className="font-medium cursor-pointer block">
-                        {item.name}
-                    </label>
+                    <div className="flex items-center gap-2">
+                        <label htmlFor={`item-${item.id}`} className="font-medium cursor-pointer block">
+                            {item.name}
+                        </label>
+                        {item.source && (
+                            <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                                {item.source}
+                            </Badge>
+                        )}
+                    </div>
+                    {item.normalizedName && item.normalizedName !== item.name && (
+                        <span className="text-xs text-muted-foreground">Normalized: {item.normalizedName}</span>
+                    )}
                     <span className="text-xs text-muted-foreground">{item.quantity} {item.category}</span>
                 </div>
             </div>
