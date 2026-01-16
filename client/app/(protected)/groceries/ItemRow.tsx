@@ -35,7 +35,7 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                 <div className={checked ? "text-muted-foreground line-through" : ""}>
                     <div className="flex items-center gap-2">
                         <label htmlFor={`item-${item.id}`} className="font-medium cursor-pointer block">
-                            {item.name}
+                            {item.normalizedName || item.name}
                         </label>
                         {item.source && (
                             <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
@@ -44,7 +44,7 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                         )}
                     </div>
                     {item.normalizedName && item.normalizedName !== item.name && (
-                        <span className="text-xs text-muted-foreground">Normalized: {item.normalizedName}</span>
+                        <span className="text-xs text-muted-foreground">Original: {item.name}</span>
                     )}
                     <span className="text-xs text-muted-foreground">{item.quantity} {item.category}</span>
                 </div>
