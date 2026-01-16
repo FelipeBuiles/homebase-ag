@@ -1,8 +1,9 @@
 import { setupWorker } from "../lib/queue";
 import prisma from "../lib/prisma";
 import { Job } from "bullmq";
+import { generateText } from "ai";
 import { getAgentConfig, runAgentPrompt } from "../lib/ai";
-import { resolveEffectiveConfig } from "../lib/llm-providers";
+import { getProviderClient, resolveEffectiveConfig, resolveProviderConfig, type ProviderKind } from "../lib/llm-providers";
 import { DEFAULT_INVENTORY_CATEGORIES, normalizeTagName, toTitleCase } from "../lib/inventory";
 import { deriveNameSuggestion } from "../lib/enrichment";
 import { resolvePublicUploadPath } from "../lib/uploads";
@@ -45,37 +46,40 @@ Rules:
 - ocr: capture any visible text like model numbers, serials, or brands.
 - summary: one short sentence describing the item.`;
 
-const analyzeAttachment = async (imagePath: string, model: string): Promise<VisionResult> => {
+const analyzeAttachment = async (
+    imagePath: string,
+    model: string,
+    providerConfig: { provider: ProviderKind; baseUrl?: string; apiKey?: string }
+): Promise<VisionResult> => {
     const buffer = await fs.readFile(imagePath);
     const resized = await sharp(buffer)
         .resize({ width: 1024, height: 1024, fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: 70 })
         .toBuffer();
-    const base64 = resized.toString("base64");
-
-    const appConfig = await prisma.appConfig.findFirst();
-    const baseURL = appConfig?.llmBaseUrl ?? "http://localhost:11434";
-    const apiKey = appConfig?.llmApiKey ?? undefined;
-    const endpoint = new URL("/api/generate", baseURL);
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-        },
-        body: JSON.stringify({
-            model,
-            prompt: buildVisionPrompt(),
-            images: [base64],
-            stream: false,
-        }),
+    const providerClient = getProviderClient({
+        provider: providerConfig.provider,
+        baseUrl: providerConfig.baseUrl,
+        apiKey: providerConfig.apiKey,
     });
-    if (!response.ok) {
-        const message = await response.text();
-        return { analysis: null, raw: message, error: `request_failed:${response.status}` };
+    let raw = "";
+    try {
+        const response = await generateText({
+            model: providerClient(model),
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: buildVisionPrompt() },
+                        { type: "image", image: resized, mimeType: "image/jpeg" },
+                    ],
+                },
+            ],
+        });
+        raw = response.text ?? "";
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return { analysis: null, raw: message, error: "request_failed" };
     }
-    const payload = await response.json();
-    const raw = typeof payload?.response === "string" ? payload.response : "";
     const parsed = extractJson(raw);
     if (!parsed || typeof parsed !== "object") {
         return { analysis: null, raw, error: "invalid_json" };
@@ -151,12 +155,18 @@ setupWorker("inventory", async (job: Job) => {
                     ?? config?.visionModel
                     ?? config?.model
                     ?? "qwen3-vl:8b";
+                const providerConfig = resolveProviderConfig({
+                    globalProvider: effectiveConfig.provider,
+                    baseUrl: appConfig?.llmBaseUrl,
+                    apiKey: appConfig?.llmApiKey,
+                    agentProviderOverride: null,
+                });
                 const absolutePath = resolvePublicUploadPath(primaryPhoto.url);
                 if (!absolutePath) {
                     throw new Error(`Invalid upload path: ${primaryPhoto.url}`);
                 }
                 const visionStart = Date.now();
-                const { analysis, raw, error } = await analyzeAttachment(absolutePath, modelName);
+                const { analysis, raw, error } = await analyzeAttachment(absolutePath, modelName, providerConfig);
                 visualAnalysis = analysis;
                 visualRaw = raw;
                 if (analysis) {
