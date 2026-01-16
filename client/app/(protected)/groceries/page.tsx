@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { addGroceryItem } from "./actions";
-import { GroceryItemRow } from "./ItemRow";
 import { getOrCreateDefaultGroceryList } from "@/lib/groceries";
 import { findDuplicateGroups } from "@/lib/groceries-duplicates";
 import { mergeGroceryItems } from "./actions";
+import { GroceriesListClient } from "./GroceriesListClient";
 
 async function getDefaultList() {
   const list = await getOrCreateDefaultGroceryList();
@@ -79,18 +79,7 @@ export default async function GroceriesPage() {
         </Card>
       )}
 
-      <div className="space-y-1">
-        {list?.items.length === 0 && (
-          <Card className="border-dashed">
-            <CardContent className="py-10 text-center text-muted-foreground">
-              List is empty. Add something above.
-            </CardContent>
-          </Card>
-        )}
-        {list?.items.map((item) => (
-          <GroceryItemRow key={item.id} item={item} />
-        ))}
-      </div>
+      <GroceriesListClient items={list?.items ?? []} />
     </div>
   );
 }
