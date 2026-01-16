@@ -42,6 +42,11 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                                 {item.source}
                             </Badge>
                         )}
+                        {(!item.normalizedName || !item.canonicalKey) && (
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                                Normalizing
+                            </Badge>
+                        )}
                     </div>
                     <span className="text-xs text-muted-foreground">{item.quantity} {item.category}</span>
                 </div>
