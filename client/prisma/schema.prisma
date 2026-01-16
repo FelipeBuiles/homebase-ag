@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -109,6 +110,11 @@ model GroceryItem {
   category    String?
   quantity    String? // e.g. "2 bags"
   isChecked   Boolean  @default(false)
+  normalizedName    String?
+  canonicalKey      String?
+  source            GroceryItemSource @default(manual)
+  suggestedCategory String?
+  mergedFrom        Json?
   
   listId      String
   list        GroceryList @relation(fields: [listId], references: [id])
@@ -116,6 +122,12 @@ model GroceryItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+}
+
+enum GroceryItemSource {
+  manual
+  recipe
+  agent
 }
 
 model Recipe {
