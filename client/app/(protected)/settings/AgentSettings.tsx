@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateAgentConfig } from "./ai-actions";
-import { ProviderOverrideSelect } from "./ProviderOverrideSelect";
+import { AgentOverrideFields } from "./AgentOverrideFields";
 
 export async function AgentSettings() {
   const configs = await prisma.agentConfig.findMany();
@@ -64,45 +64,14 @@ export async function AgentSettings() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">Optional. Used for image inputs.</p>
                 </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="overrideEnabled"
-                    defaultChecked={config?.overrideEnabled ?? false}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  Override global settings
-                </label>
               </div>
-              {(config?.overrideEnabled ?? false) && (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Override provider</label>
-                    <ProviderOverrideSelect
-                      name="providerOverride"
-                      defaultValue={config?.providerOverride ?? ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor={`${agent.agentId}-model-override`}>Override model</label>
-                    <Input
-                      id={`${agent.agentId}-model-override`}
-                      name="modelOverride"
-                      defaultValue={config?.modelOverride ?? ""}
-                      placeholder="gpt-4.1-mini"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor={`${agent.agentId}-vision-override`}>Override vision model</label>
-                    <Input
-                      id={`${agent.agentId}-vision-override`}
-                      name="visionModelOverride"
-                      defaultValue={config?.visionModelOverride ?? ""}
-                      placeholder="gpt-4.1-mini"
-                    />
-                  </div>
-                </div>
-              )}
+              <AgentOverrideFields
+                agentId={agent.agentId}
+                overrideEnabled={config?.overrideEnabled}
+                providerOverride={config?.providerOverride}
+                modelOverride={config?.modelOverride}
+                visionModelOverride={config?.visionModelOverride}
+              />
 
               <details className="rounded-xl border border-border/60 bg-background/70 p-3">
                 <summary className="cursor-pointer text-sm font-medium">Advanced prompt settings</summary>
