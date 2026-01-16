@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { parseIngredientLine } from "@/lib/ingredients";
 import { recipeQueue } from "@/lib/queue";
+import { addRecipeIngredientsToGroceries } from "@/lib/recipes-to-groceries";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -117,6 +118,12 @@ export async function retryRecipeParsing(recipeId: string) {
     await recipeQueue.add("parse", { recipeId, sourceUrl: recipe.sourceUrl });
     revalidatePath("/recipes");
     revalidatePath(`/recipes/${recipeId}`);
+}
+
+export async function addRecipeIngredientsToGroceriesAction(recipeId: string) {
+    const result = await addRecipeIngredientsToGroceries(recipeId);
+    revalidatePath("/groceries");
+    return result;
 }
 
 export async function updateRecipe(formData: FormData) {

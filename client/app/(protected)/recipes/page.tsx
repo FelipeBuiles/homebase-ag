@@ -12,6 +12,7 @@ import { RecipesPolling } from "./RecipesPolling";
 import { isRecipePolling } from "@/lib/recipes-polling-status";
 import { RetryParsingButton } from "./RetryParsingButton";
 import { RecipeImage } from "./RecipeImage";
+import { AddToGroceriesButton } from "./AddToGroceriesButton";
 
 async function getRecipes() {
   return await prisma.recipe.findMany({
@@ -136,6 +137,11 @@ export default async function RecipesPage(props: { searchParams: Promise<SearchP
                         <Utensils size={14} />
                         <span>{recipe._count.ingredients} ingredients</span>
                     </div>
+                    {!planId && (
+                      <div className="mt-3">
+                        <AddToGroceriesButton recipeId={recipe.id} />
+                      </div>
+                    )}
                 </CardContent>
                 </Card>
             </Link>

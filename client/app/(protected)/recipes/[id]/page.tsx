@@ -11,6 +11,7 @@ import { RecipesPolling } from "../RecipesPolling";
 import { isRecipePolling } from "@/lib/recipes-polling-status";
 import { RetryParsingButton } from "../RetryParsingButton";
 import { RecipeImage } from "../RecipeImage";
+import { AddToGroceriesButton } from "../AddToGroceriesButton";
 
 async function getRecipe(id: string) {
     try {
@@ -50,6 +51,7 @@ export default async function RecipeDetailPage(props: { params: Promise<{ id: st
           </p>
         </div>
         <div className="page-actions">
+          {!isPending && <AddToGroceriesButton recipeId={recipe.id} />}
           <form action={deleteRecipe.bind(null, recipe.id)}>
             <Button variant="destructive" size="sm" className="gap-2">
               <Trash2 size={14} /> Delete
