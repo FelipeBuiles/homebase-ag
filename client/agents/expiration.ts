@@ -2,6 +2,8 @@ import { Job } from "bullmq";
 import prisma from "../lib/prisma";
 import { setupWorker } from "../lib/queue";
 import { runAgentPrompt } from "../lib/ai";
+import { getAppConfig } from "../lib/settings";
+import { buildExpiringPantryWhere } from "../lib/pantry/expiration-agent";
 
 console.log("Starting Expiration Agent...");
 
@@ -9,17 +11,12 @@ const processJob = async (_job: Job) => {
     void _job;
     console.log("Running expiration check...");
 
-    // Find items expiring in the next 7 days
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const appConfig = await getAppConfig();
+    const warningDays = appConfig?.pantryWarningDays ?? 7;
+    const now = new Date();
 
     const expiringItems = await prisma.pantryItem.findMany({
-        where: {
-            expirationDate: {
-                lte: sevenDaysFromNow,
-                gte: new Date() // Not already expired (optional choice)
-            }
-        }
+        where: buildExpiringPantryWhere(now, warningDays)
     });
 
     console.log(`Found ${expiringItems.length} expiring items.`);
@@ -27,7 +24,7 @@ const processJob = async (_job: Job) => {
     for (const item of expiringItems) {
         const { data, raw } = await runAgentPrompt(
             "agent_expiration",
-            `Pantry item: ${item.name}\nExpires: ${item.expirationDate?.toISOString() ?? "unknown"}\nQuantity: ${item.quantity ?? "unknown"}`
+            `Pantry item: ${item.name}\nExpires: ${item.expirationDate?.toISOString() ?? "unknown"}\nOpened: ${item.openedDate?.toISOString() ?? "unknown"}\nQuantity: ${item.quantity ?? "unknown"}`
         );
 
         const shouldCreate = data?.shouldCreate ?? false;

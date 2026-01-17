@@ -64,6 +64,17 @@ describe("parseAgentResponse", () => {
     });
   });
 
+  it("parses pantry maintenance payload", () => {
+    const raw =
+      `{"actions":[{"type":"mark","pantryItemId":"p1","status":"out_of_stock","confidence":0.8,"rationale":"stale"}]}`;
+    const result = parseAgentResponse("agent_pantry_maintenance" as never, raw);
+    expect(result).toEqual({
+      actions: [
+        { type: "mark", pantryItemId: "p1", status: "out_of_stock", confidence: 0.8, rationale: "stale" },
+      ],
+    });
+  });
+
   it("parses recipe parser payload", () => {
     const raw = `{"name":"Toast","description":"Simple","ingredients":["Bread","Butter"],"instructions":["Toast bread","Spread butter"]}`;
     const result = parseAgentResponse("agent_recipe_parser", raw);

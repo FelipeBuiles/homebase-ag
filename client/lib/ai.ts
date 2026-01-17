@@ -131,6 +131,32 @@ export const parseAgentResponse = (agentId: AgentId, raw: string) => {
 
       return { suggestions: normalized };
     }
+    case "agent_pantry_maintenance": {
+      const actions = (data as { actions?: unknown }).actions;
+      if (!Array.isArray(actions)) return null;
+      const normalized = actions
+        .filter((entry) => entry && typeof entry === "object")
+        .map((entry) => ({
+          type: typeof (entry as { type?: unknown }).type === "string"
+            ? (entry as { type: string }).type
+            : null,
+          pantryItemId: typeof (entry as { pantryItemId?: unknown }).pantryItemId === "string"
+            ? (entry as { pantryItemId: string }).pantryItemId
+            : null,
+          status: typeof (entry as { status?: unknown }).status === "string"
+            ? (entry as { status: string }).status
+            : null,
+          confidence: typeof (entry as { confidence?: unknown }).confidence === "number"
+            ? (entry as { confidence: number }).confidence
+            : undefined,
+          rationale: typeof (entry as { rationale?: unknown }).rationale === "string"
+            ? (entry as { rationale: string }).rationale
+            : undefined,
+        }))
+        .filter((entry) => entry.type && entry.pantryItemId && entry.status);
+
+      return { actions: normalized };
+    }
     case "agent_recipe_parser": {
       const name = typeof (data as { name?: unknown }).name === "string"
         ? (data as { name: string }).name

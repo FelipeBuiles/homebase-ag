@@ -3,6 +3,7 @@ export type AgentId =
   | "agent_enrichment"
   | "agent_chef"
   | "agent_expiration"
+  | "agent_pantry_maintenance"
   | "agent_recipe_parser";
 
 export type AgentPromptConfig = {
@@ -91,6 +92,16 @@ Return JSON only: {"shouldCreate": boolean, "name": string, "quantity": string, 
 Rules:
 - If item is still usable, return shouldCreate=false.
 - Use a simple quantity like "1" if unsure.`,
+  },
+  {
+    agentId: "agent_pantry_maintenance",
+    label: "Pantry Maintenance",
+    defaultModel: "qwen3:8b",
+    defaultPrompt: `You suggest pantry maintenance actions.
+Return JSON only: {"actions":[{"type":"mark","pantryItemId":string,"status":"out_of_stock"|"discarded","confidence":number,"rationale":string}]}.
+Rules:
+- Only return actions when confidence is high.
+- Prefer marking out_of_stock for stale items.`,
   },
   {
     agentId: "agent_recipe_parser",
