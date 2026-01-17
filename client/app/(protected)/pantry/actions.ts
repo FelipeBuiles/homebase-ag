@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { maintenanceQueue } from "@/lib/queue";
 
 export async function createPantryItem(formData: FormData) {
   const name = formData.get("name") as string;
@@ -47,4 +48,9 @@ export async function updatePantryItemStatus(id: string, status: string) {
   });
   revalidatePath("/pantry");
   revalidatePath("/pantry/expiring");
+}
+
+export async function runPantryMaintenance() {
+  await maintenanceQueue.add("pantry-maintenance", {}, { removeOnComplete: true });
+  revalidatePath("/pantry");
 }

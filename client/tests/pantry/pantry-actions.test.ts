@@ -4,8 +4,9 @@ import { resetDb } from "@/tests/utils/db";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+vi.mock("@/lib/queue", () => ({ maintenanceQueue: { add: vi.fn() } }));
 
-import { createPantryItem, updatePantryItemStatus } from "@/app/(protected)/pantry/actions";
+import { createPantryItem, runPantryMaintenance, updatePantryItemStatus } from "@/app/(protected)/pantry/actions";
 
 describe("pantry actions", () => {
   afterEach(async () => {
@@ -43,5 +44,11 @@ describe("pantry actions", () => {
     const updated = await prisma.pantryItem.findUnique({ where: { id: item.id } });
     expect(updated?.status).toBe("consumed");
     expect(updated?.statusUpdatedAt).toBeTruthy();
+  });
+
+  it("queues a maintenance job", async () => {
+    await runPantryMaintenance();
+    const { maintenanceQueue } = await import("@/lib/queue");
+    expect(maintenanceQueue.add).toHaveBeenCalled();
   });
 });

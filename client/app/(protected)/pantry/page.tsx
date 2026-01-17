@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Calendar, Package } from "lucide-react";
 import Link from "next/link";
-import { deletePantryItem } from "./actions";
+import { deletePantryItem, runPantryMaintenance } from "./actions";
 import { Badge } from "@/components/ui/badge";
 
 async function getPantryItems() {
@@ -43,11 +43,16 @@ export default async function PantryPage() {
           <h1 className="page-title">Pantry</h1>
           <p className="page-subtitle">Track what you have.</p>
         </div>
-        <Link href="/pantry/new">
-          <Button className="gap-2">
-            <Plus size={16} /> Add Item
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <form action={runPantryMaintenance}>
+            <Button variant="outline">Run maintenance</Button>
+          </form>
+          <Link href="/pantry/new">
+            <Button className="gap-2">
+              <Plus size={16} /> Add Item
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-8">
