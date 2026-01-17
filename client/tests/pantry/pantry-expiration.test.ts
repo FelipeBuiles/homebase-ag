@@ -16,4 +16,10 @@ describe("pantry expiration helpers", () => {
     expect(status.label).toBe("Expiring Soon");
     expect(status.level).toBe("warning");
   });
+
+  it("labels unknown expiration", () => {
+    const status = getExpirationStatus(null, today, 7);
+    expect(status.label).toBe("Unknown");
+    expect(status.level).toBe("unknown");
+  });
 });

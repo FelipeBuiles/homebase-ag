@@ -38,6 +38,9 @@ export default async function PantryPage() {
           <form action={runPantryMaintenance}>
             <Button variant="outline">Run maintenance</Button>
           </form>
+          <Link href="/pantry/expiring">
+            <Button variant="outline">Expiring view</Button>
+          </Link>
           <Link href="/pantry/new">
             <Button className="gap-2">
               <Plus size={16} /> Add Item

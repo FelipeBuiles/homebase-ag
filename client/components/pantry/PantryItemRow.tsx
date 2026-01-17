@@ -42,7 +42,7 @@ export const PantryItemRow = ({ item, expiration, actions }: PantryItemRowProps)
             <Badge variant={expirationVariantByLevel[expiration.level]}>{expiration.label}</Badge>
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground font-mono tabular-nums">
           {item.quantity || "-"} {item.unit || ""}
         </div>
       </CardHeader>
