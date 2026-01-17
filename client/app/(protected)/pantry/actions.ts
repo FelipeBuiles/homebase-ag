@@ -92,3 +92,17 @@ export async function runPantryMaintenance() {
   await maintenanceQueue.add("pantry-maintenance", {}, { removeOnComplete: true });
   revalidatePath("/pantry");
 }
+
+export async function updatePantryWarningWindow(formData: FormData) {
+  const value = Number(formData.get("pantryWarningDays"));
+  const pantryWarningDays = Number.isFinite(value) ? value : 7;
+
+  await prisma.appConfig.upsert({
+    where: { id: "app" },
+    create: { id: "app", pantryWarningDays },
+    update: { pantryWarningDays },
+  });
+
+  revalidatePath("/pantry");
+  revalidatePath("/pantry/expiring");
+}
