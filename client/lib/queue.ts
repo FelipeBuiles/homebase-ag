@@ -13,6 +13,7 @@ export const recipeQueue = new Queue("recipe-parser", { connection });
 export const expirationQueue = new Queue("expiration", { connection });
 export const chefQueue = new Queue("chef", { connection });
 export const proposalQueue = new Queue("proposal", { connection });
+export const maintenanceQueue = new Queue("pantry-maintenance", { connection });
 
 export const setupWorker = (queueName: string, processor: Processor) => {
     return new Worker(queueName, processor, { connection });
