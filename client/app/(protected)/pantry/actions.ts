@@ -15,6 +15,8 @@ export async function createPantryItem(formData: FormData) {
   const location = formData.get("location") as string;
   const status = (formData.get("status") as string) || "in_stock";
   const inventoryItemId = formData.get("inventoryItemId") as string;
+  const normalizedInventoryItemId =
+    inventoryItemId && inventoryItemId !== "none" ? inventoryItemId : null;
 
   if (!name || !location) return;
 
@@ -26,7 +28,7 @@ export async function createPantryItem(formData: FormData) {
       category: category || null,
       location,
       status,
-      inventoryItemId: inventoryItemId || null,
+      inventoryItemId: normalizedInventoryItemId,
       expirationDate: expirationDateStr ? new Date(expirationDateStr) : null,
       openedDate: openedDateStr ? new Date(openedDateStr) : null,
     },
@@ -48,6 +50,42 @@ export async function updatePantryItemStatus(id: string, status: string) {
   });
   revalidatePath("/pantry");
   revalidatePath("/pantry/expiring");
+}
+
+export async function updatePantryItem(id: string, formData: FormData) {
+  const name = formData.get("name") as string;
+  const quantity = formData.get("quantity") as string;
+  const unit = formData.get("unit") as string;
+  const expirationDateStr = formData.get("expirationDate") as string;
+  const openedDateStr = formData.get("openedDate") as string;
+  const category = formData.get("category") as string;
+  const location = formData.get("location") as string;
+  const status = (formData.get("status") as string) || "in_stock";
+  const inventoryItemId = formData.get("inventoryItemId") as string;
+  const normalizedInventoryItemId =
+    inventoryItemId && inventoryItemId !== "none" ? inventoryItemId : null;
+
+  if (!name || !location) return;
+
+  await prisma.pantryItem.update({
+    where: { id },
+    data: {
+      name,
+      quantity: quantity || null,
+      unit: unit || null,
+      category: category || null,
+      location,
+      status,
+      statusUpdatedAt: new Date(),
+      inventoryItemId: normalizedInventoryItemId,
+      expirationDate: expirationDateStr ? new Date(expirationDateStr) : null,
+      openedDate: openedDateStr ? new Date(openedDateStr) : null,
+    },
+  });
+
+  revalidatePath("/pantry");
+  revalidatePath("/pantry/expiring");
+  redirect("/pantry");
 }
 
 export async function runPantryMaintenance() {
