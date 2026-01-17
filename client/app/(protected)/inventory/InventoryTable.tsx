@@ -13,6 +13,7 @@ type InventoryItemRow = {
   condition?: string | null;
   serialNumber?: string | null;
   enrichmentStatus?: string | null;
+  pantryItems: { id: string; status: string }[];
   categories: string[];
   rooms: RoomOption[];
   tags: TagOption[];
@@ -96,6 +97,9 @@ export function InventoryTable({ items }: InventoryTableProps) {
                         <Badge variant="destructive">Enrichment failed</Badge>
                       )}
                       {item.condition && <Badge variant="outline">{item.condition}</Badge>}
+                      {item.pantryItems.length > 0 && (
+                        <Badge variant="outline">Pantry linked</Badge>
+                      )}
                     </div>
                   </td>
                   <td className="py-3 px-4 text-xs text-muted-foreground">

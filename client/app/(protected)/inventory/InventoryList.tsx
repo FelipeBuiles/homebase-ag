@@ -20,6 +20,7 @@ type InventoryItemRow = {
   condition?: string | null;
   serialNumber?: string | null;
   enrichmentStatus?: string | null;
+  pantryItems: { id: string; status: string }[];
   categories: string[];
   rooms: RoomOption[];
   tags: TagOption[];
@@ -252,6 +253,9 @@ export function InventoryList({ items, rooms, tags, categories }: InventoryListP
                       {category}
                     </Badge>
                   ))
+                )}
+                {item.pantryItems.length > 0 && (
+                  <Badge variant="outline">Pantry linked</Badge>
                 )}
                 {enrichmentStatus === "pending" && (
                   <Badge variant="outline">

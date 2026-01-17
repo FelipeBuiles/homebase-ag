@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { GroceryItem } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export function GroceryItemRow({ item }: { item: GroceryItem }) {
     const router = useRouter();
@@ -40,6 +41,11 @@ export function GroceryItemRow({ item }: { item: GroceryItem }) {
                         {item.source && (
                             <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
                                 {item.source}
+                            </Badge>
+                        )}
+                        {item.pantryItemId && (
+                            <Badge variant="outline" className="text-[10px] uppercase tracking-wide" asChild>
+                                <Link href="/pantry">Pantry</Link>
                             </Badge>
                         )}
                         {(!item.normalizedName || !item.canonicalKey) && (

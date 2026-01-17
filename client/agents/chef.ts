@@ -2,6 +2,7 @@ import { Job } from "bullmq";
 import prisma from "../lib/prisma";
 import { setupWorker } from "../lib/queue";
 import { runAgentPrompt } from "../lib/ai";
+import { filterInStockPantryItems } from "../lib/pantry/filters";
 
 console.log("Starting Chef Agent...");
 
@@ -18,16 +19,17 @@ const processJob = async (_job: Job) => {
             expirationDate: {
                 lte: nextWeek,
                 gte: new Date()
-            }
+            },
         }
     });
+    const inStockItems = filterInStockPantryItems(expiringItems);
 
-    if (expiringItems.length === 0) {
+    if (inStockItems.length === 0) {
         console.log("No expiring items to cook with.");
         return;
     }
 
-    console.log(`Found ${expiringItems.length} expiring items.`);
+    console.log(`Found ${inStockItems.length} expiring items.`);
 
     // 2. Find active meal plan(s) for the next week
     // Simplifying assumption: look for ANY meal plan that covers dates in the future
@@ -73,7 +75,7 @@ const processJob = async (_job: Job) => {
 
     const { data, raw } = await runAgentPrompt(
         "agent_chef",
-        `Expiring pantry items: ${expiringItems.map((item) => item.name).join(", ")}\nOpen slots: ${JSON.stringify(openSlots)}`
+        `Expiring pantry items: ${inStockItems.map((item) => item.name).join(", ")}\nOpen slots: ${JSON.stringify(openSlots)}`
     );
 
     const suggestions = data?.suggestions ?? [];

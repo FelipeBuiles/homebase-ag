@@ -69,6 +69,7 @@ export default async function InventoryPage({
       rooms: true,
       tags: true,
       attachments: { orderBy: { order: "asc" } },
+      pantryItems: { select: { id: true, status: true } },
     },
   });
   const filtered = items.filter((item) => {
