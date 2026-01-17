@@ -57,6 +57,7 @@ model InventoryItem {
   rooms       Room[]
   tags        Tag[]
   attachments InventoryAttachment[]
+  pantryItems PantryItem[]
   photoUrl    String?
   description String?
   enrichmentStatus String? @default("idle")
@@ -116,6 +117,8 @@ model GroceryItem {
   source            GroceryItemSource @default(manual)
   suggestedCategory String?
   mergedFrom        Json?
+  pantryItemId String?
+  pantryItem   PantryItem? @relation(fields: [pantryItemId], references: [id])
   
   listId      String
   list        GroceryList @relation(fields: [listId], references: [id])
@@ -167,8 +170,16 @@ model PantryItem {
   description    String?
   quantity       String?
   unit           String?
+  location       String
   expirationDate DateTime?
+  openedDate     DateTime?
   category       String?
+  status         String   @default("in_stock")
+  statusUpdatedAt DateTime @default(now())
+
+  inventoryItemId String?
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  groceryItems   GroceryItem[]
   
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
