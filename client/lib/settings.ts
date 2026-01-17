@@ -18,6 +18,7 @@ export async function getAppConfig() {
       llmApiKey: defaultApiKey || null,
       llmModel: defaultTextModel || null,
       llmVisionModel: defaultVisionModel || null,
+      pantryWarningDays: 7,
     },
   });
 }
