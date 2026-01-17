@@ -1,40 +1,31 @@
 import prisma from "@/lib/prisma";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Calendar, Package } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { deletePantryItem, runPantryMaintenance } from "./actions";
-import { Badge } from "@/components/ui/badge";
+import { getAppConfig } from "@/lib/settings";
+import { groupPantryItemsByCategory } from "@/lib/pantry/grouping";
+import { getEffectiveExpirationDate, getExpirationStatus } from "@/lib/pantry/expiration";
+import { PantryItemRow } from "@/components/pantry/PantryItemRow";
 
 async function getPantryItems() {
   return await prisma.pantryItem.findMany({
-    orderBy: { expirationDate: 'asc' } // Expiring soonest first
+    orderBy: { expirationDate: "asc" } // Expiring soonest first
   });
-}
-
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
-
-function getExpirationStatus(date: Date | null): { label: string; color: BadgeVariant } {
-    if (!date) return { label: "No Date", color: "secondary" };
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    
-    if (diffDays < 0) return { label: "Expired", color: "destructive" };
-    if (diffDays <= 3) return { label: "Expiring Soon", color: "destructive" }; // reusing destructive for warning tone
-    if (diffDays <= 7) return { label: "Use Soon", color: "secondary" }; // yellowish? default to secondary for now
-    return { label: "Good", color: "outline" };
 }
 
 export default async function PantryPage() {
   const items = await getPantryItems();
+  const appConfig = await getAppConfig();
+  const warningDays = appConfig?.pantryWarningDays ?? 7;
   const now = new Date();
-  const expiredCount = items.filter((item) => item.expirationDate && item.expirationDate < now).length;
-  const expiringSoonCount = items.filter((item) => {
-    if (!item.expirationDate) return false;
-    const diffDays = Math.ceil((item.expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 3;
-  }).length;
+  const expirationStatuses = items.map((item) =>
+    getExpirationStatus(getEffectiveExpirationDate(item.expirationDate, item.openedDate), now, warningDays)
+  );
+  const expiredCount = expirationStatuses.filter((status) => status.level === "expired").length;
+  const expiringSoonCount = expirationStatuses.filter((status) => status.level === "warning").length;
+  const groupedItems = groupPantryItemsByCategory(items);
 
   return (
     <div className="page-container">
@@ -76,64 +67,63 @@ export default async function PantryPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger">
-        {items.map((item) => {
-            const status = getExpirationStatus(item.expirationDate);
-            return (
-                <Card key={item.id} className="group relative">
-                    <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                            <CardTitle className="text-lg">{item.name}</CardTitle>
-                            {item.expirationDate && (
-                                <Badge variant={status.color}>{status.label}</Badge>
-                            )}
-                        </div>
-                        <CardDescription>{item.quantity} {item.unit}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                            {item.expirationDate && (
-                                <div className="flex items-center gap-2">
-                                    <Calendar size={14} />
-                                    <span>Expires: {item.expirationDate.toLocaleDateString()}</span>
-                                </div>
-                            )}
-                             {item.category && (
-                                <div className="flex items-center gap-2">
-                                    <Package size={14} />
-                                    <span>{item.category}</span>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <form action={deletePantryItem.bind(null, item.id)}>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10">
-                                    <Trash2 size={14} />
-                                </Button>
-                            </form>
-                        </div>
-                    </CardContent>
-                </Card>
-            );
-        })}
-        {items.length === 0 && (
-             <Card className="col-span-full border-dashed">
-                <CardContent className="py-12 text-center text-muted-foreground space-y-3">
-                  <p className="text-lg text-foreground">Pantry is empty</p>
-                  <p className="text-sm text-muted-foreground">Add items or import from inventory to get started.</p>
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <Link href="/pantry/new">
-                      <Button size="sm">Add first item</Button>
-                    </Link>
-                    <Link href="/inventory" className="text-sm text-muted-foreground hover:text-primary">
-                      Browse inventory
-                    </Link>
-                  </div>
-                </CardContent>
-             </Card>
-        )}
-      </div>
+      {items.length > 0 ? (
+        <div className="space-y-8">
+          {groupedItems.map((group) => (
+            <div key={group.category} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.category}
+                </h2>
+                <span className="text-sm text-muted-foreground">{group.items.length}</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger">
+                {group.items.map((item) => {
+                  const expiration = getExpirationStatus(
+                    getEffectiveExpirationDate(item.expirationDate, item.openedDate),
+                    now,
+                    warningDays
+                  );
+
+                  return (
+                    <PantryItemRow
+                      key={item.id}
+                      item={item}
+                      expiration={expiration}
+                      actions={
+                        <form action={deletePantryItem.bind(null, item.id)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </form>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center text-muted-foreground space-y-3">
+            <p className="text-lg text-foreground">Pantry is empty</p>
+            <p className="text-sm text-muted-foreground">Add items or import from inventory to get started.</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link href="/pantry/new">
+                <Button size="sm">Add first item</Button>
+              </Link>
+              <Link href="/inventory" className="text-sm text-muted-foreground hover:text-primary">
+                Browse inventory
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

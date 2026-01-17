@@ -1,9 +1,9 @@
-type PantryGroupItem = { id: string; name: string; category: string | null };
+type PantryGroup<T> = { category: string; items: T[] };
 
-type PantryGroup = { category: string; items: PantryGroupItem[] };
-
-export const groupPantryItemsByCategory = (items: PantryGroupItem[]): PantryGroup[] => {
-  const groups = new Map<string, PantryGroupItem[]>();
+export const groupPantryItemsByCategory = <T extends { category: string | null }>(
+  items: T[]
+): PantryGroup<T>[] => {
+  const groups = new Map<string, T[]>();
 
   for (const item of items) {
     const category = item.category?.trim() || "Uncategorized";
@@ -13,6 +13,10 @@ export const groupPantryItemsByCategory = (items: PantryGroupItem[]): PantryGrou
   }
 
   return Array.from(groups.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    })
     .map(([category, groupItems]) => ({ category, items: groupItems }));
 };

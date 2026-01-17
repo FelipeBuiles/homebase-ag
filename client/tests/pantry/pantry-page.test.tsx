@@ -14,6 +14,10 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+vi.mock("@/lib/settings", () => ({
+  getAppConfig: vi.fn().mockResolvedValue({ pantryWarningDays: 7 }),
+}));
+
 vi.mock("next/link", () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
 }));
