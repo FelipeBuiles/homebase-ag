@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  passwordHash String?
+  createdAt    DateTime @default(now())
+}
+
+model AppConfig {
+  id             String  @id @default("singleton")
+  llmProvider    String  @default("openrouter")
+  textModel      String  @default("google/gemini-2.0-flash-001")
+  visionModel    String  @default("google/gemini-2.0-flash-001")
+  ollamaBaseUrl  String  @default("http://localhost:11434")
+  ollamaModel    String  @default("llama3.2")
+  pantryWarnDays Int     @default(7)
+  isPasswordSet  Boolean @default(false)
+}
+
+model AgentConfig {
+  id            String   @id @default(cuid())
+  agentId       String   @unique
+  enabled       Boolean  @default(true)
+  llmOverride   String?
+  modelOverride String?
+  updatedAt     DateTime @updatedAt
+}
+
+model InventoryItem {
+  id           String                @id @default(cuid())
+  name         String
+  brand        String?
+  condition    String                @default("good")
+  quantity     Int                   @default(1)
+  notes        String?
+  categories   String[]
+  rooms        String[]
+  tags         String[]
+  completeness Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  attachments  InventoryAttachment[]
+}
+
+model InventoryAttachment {
+  id        String        @id @default(cuid())
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  url       String
+  mimeType  String
+  width     Int?
+  height    Int?
+  ocrText   String?
+  createdAt DateTime      @default(now())
+}
+
+model GroceryList {
+  id        String        @id @default(cuid())
+  name      String
+  items     GroceryItem[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model GroceryItem {
+  id             String      @id @default(cuid())
+  listId         String
+  list           GroceryList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  name           String
+  normalizedName String?
+  quantity       String?
+  unit           String?
+  checked        Boolean     @default(false)
+  source         String?
+  createdAt      DateTime    @default(now())
+}
+
+model Recipe {
+  id           String             @id @default(cuid())
+  title        String
+  description  String?
+  sourceUrl    String?
+  imageUrl     String?
+  servings     Int?
+  prepMinutes  Int?
+  cookMinutes  Int?
+  instructions String?
+  parseStatus  String             @default("pending")
+  ingredients  RecipeIngredient[]
+  mealItems    MealPlanItem[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model RecipeIngredient {
+  id             String @id @default(cuid())
+  recipeId       String
+  recipe         Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  raw            String
+  name           String?
+  quantity       String?
+  unit           String?
+  normalizedName String?
+  sortOrder      Int    @default(0)
+}
+
+model PantryItem {
+  id        String    @id @default(cuid())
+  name      String
+  brand     String?
+  location  String?
+  quantity  Float     @default(1)
+  unit      String?
+  expiresAt DateTime?
+  openedAt  DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model MealPlan {
+  id        String         @id @default(cuid())
+  name      String
+  weekStart DateTime
+  items     MealPlanItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model MealPlanItem {
+  id       String   @id @default(cuid())
+  planId   String
+  plan     MealPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  recipeId String
+  recipe   Recipe   @relation(fields: [recipeId], references: [id])
+  date     DateTime
+  mealType String
+  servings Int      @default(1)
+}
+
+model Proposal {
+  id         String           @id @default(cuid())
+  agentId    String
+  entityType String
+  entityId   String?
+  status     String           @default("pending")
+  patch      Json
+  snapshot   Json
+  rationale  String?
+  confidence Float?
+  changes    ProposalChange[]
+  createdAt  DateTime         @default(now())
+  resolvedAt DateTime?
+}
+
+model ProposalChange {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  field      String
+  before     String?
+  after      String?
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      String
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+}
