@@ -7,6 +7,60 @@ import {
 } from "@/lib/grocery-source";
 
 type Tx = Prisma.TransactionClient;
+type InventorySeed = {
+  name: string;
+  brand?: string;
+  condition: string;
+  quantity: number;
+  categories: string[];
+  rooms: string[];
+  tags: string[];
+  completeness: number;
+  enrichmentStatus: string;
+  notes?: string;
+  imageUrl: string;
+};
+type PantrySeed = {
+  name: string;
+  quantity: number;
+  unit?: string;
+  expiresAt?: Date;
+  location?: string;
+  notes?: string;
+  inventoryItemId?: string;
+};
+type RecipeIngredientSeed = {
+  raw: string;
+  name?: string;
+  quantity?: string;
+  unit?: string;
+  normalizedName?: string;
+  sortOrder: number;
+};
+type RecipeSeed = {
+  title: string;
+  description: string;
+  sourceUrl: string;
+  imageUrl: string;
+  parseStatus: string;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  instructions: string;
+  ingredients: RecipeIngredientSeed[];
+};
+type MealTypeName = "Breakfast" | "Lunch" | "Dinner";
+type MealPlanDaySeed = Record<MealTypeName, string>;
+type MealPlanSeed = {
+  name: string;
+  weekStart: Date;
+  days: MealPlanDaySeed[];
+};
+type ManualGrocerySeed = {
+  name: string;
+  source: string;
+  checked?: boolean;
+};
 
 function getCurrentMonday() {
   const date = new Date();
@@ -49,7 +103,7 @@ export async function seedDemoData(tx: Tx) {
   const nextWeek = daysFrom(monday, 7);
   const thirdWeek = daysFrom(monday, 14);
 
-  const inventoryDefinitions = [
+  const inventoryDefinitions: InventorySeed[] = [
     {
       name: "Countertop Blender",
       brand: "VitaMix",
@@ -161,7 +215,7 @@ export async function seedDemoData(tx: Tx) {
       imageUrl:
         "https://images.unsplash.com/photo-1517673400267-0251440c45dc?auto=format&fit=crop&w=1200&q=80",
     },
-  ] as const;
+  ];
 
   const inventoryItems = new Map<string, Awaited<ReturnType<typeof tx.inventoryItem.create>>>();
   for (const item of inventoryDefinitions) {
@@ -191,7 +245,7 @@ export async function seedDemoData(tx: Tx) {
     });
   }
 
-  const pantryDefinitions = [
+  const pantryDefinitions: PantrySeed[] = [
     { name: "Spaghetti", quantity: 2, unit: "box", expiresAt: daysFrom(now, 180), location: "Pantry shelf", notes: "Enough for two dinners." },
     { name: "Crushed tomatoes", quantity: 2, unit: "can", expiresAt: expiringSoon, location: "Pantry shelf", notes: "Front row; use first." },
     { name: "Garlic", quantity: 2, unit: "bulb", expiresAt: expiringSoon, location: "Counter basket" },
@@ -248,7 +302,7 @@ export async function seedDemoData(tx: Tx) {
     { name: "Honey", quantity: 1, unit: "jar", expiresAt: daysFrom(now, 300), location: "Pantry shelf" },
     { name: "Plain bagels", quantity: 1, unit: "pack", expiresAt: daysFrom(now, 5), location: "Bread box" },
     { name: "Cream cheese", quantity: 1, unit: "tub", expiresAt: daysFrom(now, 12), location: "Fridge" },
-  ] as const;
+  ];
 
   const pantryItems = await Promise.all(
     pantryDefinitions.map((item) =>
@@ -267,7 +321,7 @@ export async function seedDemoData(tx: Tx) {
   );
   const pantryByName = new Map(pantryItems.map((item) => [item.name, item]));
 
-  const recipeDefinitions = [
+  const recipeDefinitions: RecipeSeed[] = [
     {
       title: "Weeknight Tomato Pasta",
       description: "Fast pantry pasta with garlic, tomatoes, and a bright basil finish.",
@@ -653,7 +707,7 @@ export async function seedDemoData(tx: Tx) {
         { raw: "2 tbsp jam", name: "Jam", quantity: "2", unit: "tbsp", normalizedName: "jam", sortOrder: 2 },
       ],
     },
-  ] as const;
+  ];
 
   const recipes = await Promise.all(
     recipeDefinitions.map((recipe) =>
@@ -677,7 +731,7 @@ export async function seedDemoData(tx: Tx) {
   const recipeDefinitionByTitle = new Map(recipeDefinitions.map((recipe) => [recipe.title, recipe]));
   const pantryNames = new Set(pantryDefinitions.map((item) => normalizeSeedName(item.name)));
 
-  const mealPlanTemplates = [
+  const mealPlanTemplates: MealPlanSeed[] = [
     {
       name: "Week of cozy dinners",
       weekStart: monday,
@@ -717,7 +771,7 @@ export async function seedDemoData(tx: Tx) {
         { Breakfast: "Potato and Egg Breakfast Hash", Lunch: "Tuna Salad Crunch Sandwiches", Dinner: "Coconut Red Lentil Soup" },
       ],
     },
-  ] as const;
+  ];
 
   const [thisWeek, nextPlan, thirdPlan] = await Promise.all(
     mealPlanTemplates.map((plan) =>
@@ -787,7 +841,7 @@ export async function seedDemoData(tx: Tx) {
     }
   }
 
-  const manualAndRestockItems = [
+  const manualAndRestockItems: ManualGrocerySeed[] = [
     { name: "Olive oil", source: encodePantryRestockSource("Olive oil") },
     { name: "Coffee beans", source: encodePantryRestockSource("Coffee beans") },
     { name: "Sourdough bread", source: "manual" },
@@ -797,7 +851,7 @@ export async function seedDemoData(tx: Tx) {
     { name: "Fresh dill", source: encodeRecipeSource("Feta Cucumber Quinoa Salad", "missing") },
     { name: "Smoked paprika", source: encodeRecipeSource("Turkey Chili Pot", "missing") },
     { name: "Limes", source: encodeRecipeSource("Black Bean Tacos", "missing") },
-  ] as const;
+  ];
 
   for (const item of manualAndRestockItems) {
     const canonicalKey = buildCanonicalKey(item.name);

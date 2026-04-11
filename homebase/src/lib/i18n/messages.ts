@@ -998,12 +998,12 @@ export function getMessages(locale: string | null | undefined) {
 
 export function translate(
   locale: string | null | undefined,
-  key: string,
+  key: MessageKey,
   vars?: Record<string, string | number>
 ) {
   const dictionary = getMessages(locale);
-  const template = dictionary[key] ?? messages.en[key] ?? key;
+  const template = dictionary[key] ?? messages.en[key];
   if (!vars) return template;
 
-  return template.replace(/\{(\w+)\}/g, (_, token) => String(vars[token] ?? ""));
+  return template.replace(/\{(\w+)\}/g, (_: string, token: string) => String(vars[token] ?? ""));
 }

@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   description: "Household management",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{

@@ -1,10 +1,10 @@
 import { getAppConfig } from "@/lib/db/queries/settings";
-import { isSupportedLocale, translate, type SupportedLocale } from "@/lib/i18n/messages";
+import { isSupportedLocale, translate, type MessageKey, type SupportedLocale } from "@/lib/i18n/messages";
 
 function getServerTranslator(locale: SupportedLocale) {
   return {
     locale,
-    t: (key: string, vars?: Record<string, string | number>) => translate(locale, key, vars),
+    t: (key: MessageKey, vars?: Record<string, string | number>) => translate(locale, key, vars),
   };
 }
 

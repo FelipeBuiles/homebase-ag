@@ -18,14 +18,21 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { usePendingCount } from "@/components/layout/pending-count-provider";
 import { useI18n } from "@/components/i18n-provider";
+import type { MessageKey } from "@/lib/i18n/messages";
 
-const navItems = [
+const navItems: Array<{ href: string; labelKey: MessageKey; icon: typeof Home }> = [
   { href: "/", labelKey: "nav.home", icon: Home },
   { href: "/pantry", labelKey: "nav.pantry", icon: Archive },
   { href: "/recipes", labelKey: "nav.recipes", icon: ChefHat },
   { href: "/meal-plans", labelKey: "nav.mealPlans", icon: CalendarDays },
   { href: "/groceries", labelKey: "nav.groceries", icon: ShoppingCart },
   { href: "/inventory", labelKey: "nav.inventory", icon: Package },
+];
+
+const mobileNavItems: Array<{ href: string; labelKey: MessageKey; icon: typeof Home }> = [
+  ...navItems,
+  { href: "/review", labelKey: "nav.review", icon: Inbox },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings },
 ];
 
 export function Nav() {
@@ -123,7 +130,7 @@ export function Nav() {
                   <p className="mt-1 text-xs uppercase tracking-[0.22em] text-base-500">Home OS</p>
                 </div>
               </div>
-              {[...navItems, { href: "/review", labelKey: "nav.review", icon: Inbox }, { href: "/settings", labelKey: "nav.settings", icon: Settings }].map(
+              {mobileNavItems.map(
                 (item) => {
                   const Icon = item.icon;
                   return (

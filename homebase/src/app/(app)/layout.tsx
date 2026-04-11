@@ -7,6 +7,8 @@ import { getPendingProposalCount } from "@/lib/db/queries/proposals";
 import { getAppConfig } from "@/lib/db/queries/settings";
 import { isSupportedLocale } from "@/lib/i18n/messages";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {
