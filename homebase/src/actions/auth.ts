@@ -1,44 +1,58 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
-import { createHash } from "crypto";
 import { cookies } from "next/headers";
-
-const action = createSafeActionClient();
-
-function hashPassword(password: string): string {
-  return createHash("sha256").update(password).digest("hex");
-}
+import { publicAction } from "@/lib/auth/action";
+import { verifyPassword, hashPassword } from "@/lib/auth/password";
 
 const SetupSchema = z.object({
   password: z.string().min(4, "Password must be at least 4 characters"),
 });
 
-export const setupPassword = action
+export const setupPassword = publicAction
   .schema(SetupSchema)
   .action(async ({ parsedInput }) => {
-    const existing = await prisma.appConfig.findUnique({
-      where: { id: "singleton" },
-    });
+    const [config, existingUser] = await Promise.all([
+      prisma.appConfig.findUnique({
+        where: { id: "singleton" },
+      }),
+      prisma.user.findFirst({
+        where: { passwordHash: { not: null } },
+      }),
+    ]);
 
-    if (existing?.isPasswordSet) {
+    if (config?.isPasswordSet || existingUser) {
+      const cookieStore = await cookies();
+      cookieStore.set("homebase_setup", "1", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365 * 10,
+      });
       return { error: "Password already set" };
     }
 
-    const passwordHash = hashPassword(parsedInput.password);
+    const passwordHash = await hashPassword(parsedInput.password);
 
-    await prisma.user.create({
-      data: { passwordHash },
-    });
+    // Use transaction to prevent race condition creating multiple users
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findFirst({
+        where: { passwordHash: { not: null } },
+      });
+      if (existing) return;
 
-    await prisma.appConfig.upsert({
-      where: { id: "singleton" },
-      create: { isPasswordSet: true },
-      update: { isPasswordSet: true },
+      await tx.user.create({
+        data: { passwordHash },
+      });
+
+      await tx.appConfig.upsert({
+        where: { id: "singleton" },
+        create: { isPasswordSet: true },
+        update: { isPasswordSet: true },
+      });
     });
 
     const session = await getSession();
@@ -47,21 +61,21 @@ export const setupPassword = action
 
     // Mark setup as complete so the proxy redirects to /login instead of /setup
     const cookieStore = await cookies();
-    cookieStore.set("homebase_setup", "1", {
+    cookieStore.set("homebase_setup", crypto.randomUUID(), {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 365 * 10, // 10 years
     });
 
-    redirect("/");
+    return { success: true };
   });
 
 const LoginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export const login = action
+export const login = publicAction
   .schema(LoginSchema)
   .action(async ({ parsedInput }) => {
     const user = await prisma.user.findFirst();
@@ -69,8 +83,8 @@ export const login = action
       return { error: "No account found. Please run setup first." };
     }
 
-    const hash = hashPassword(parsedInput.password);
-    if (hash !== user.passwordHash) {
+    const valid = await verifyPassword(parsedInput.password, user.passwordHash);
+    if (!valid) {
       return { error: "Invalid password" };
     }
 
@@ -78,7 +92,15 @@ export const login = action
     session.isLoggedIn = true;
     await session.save();
 
-    redirect("/");
+    const cookieStore = await cookies();
+    cookieStore.set("homebase_setup", crypto.randomUUID(), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365 * 10,
+    });
+
+    return { success: true };
   });
 
 export async function logout() {

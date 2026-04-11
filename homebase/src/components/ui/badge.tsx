@@ -19,11 +19,11 @@ const badgeVariants = cva(
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
-        success: "bg-success/15 text-green-700 border-success/20",
-        warning: "bg-warning/15 text-orange-700 border-warning/20",
-        danger: "bg-danger/15 text-red-700 border-danger/20",
-        info: "bg-info/15 text-blue-700 border-info/20",
-        agent: "bg-agent-bg text-agent-text border-agent-border italic",
+        success: "bg-success/16 text-[color:color-mix(in_srgb,var(--color-success)_72%,black)] border-success/25",
+        warning: "bg-warning/18 text-[color:color-mix(in_srgb,var(--color-warning)_72%,black)] border-warning/25",
+        danger: "bg-danger/16 text-[color:color-mix(in_srgb,var(--color-danger)_72%,black)] border-danger/25",
+        info: "bg-info/16 text-[color:color-mix(in_srgb,var(--color-info)_72%,black)] border-info/25",
+        agent: "bg-agent-bg text-agent-text border-agent-border italic shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]",
       },
     },
     defaultVariants: {

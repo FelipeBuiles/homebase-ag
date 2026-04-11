@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, Trash2 } from "lucide-react";
+import { ShoppingCart, Trash2, Star } from "lucide-react";
 import { useAction } from "next-safe-action/hooks";
-import { deleteGroceryListAction } from "@/actions/groceries";
+import { deleteGroceryListAction, setDefaultListAction } from "@/actions/groceries";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ interface GroceryListCardProps {
   list: {
     id: string;
     name: string;
+    isDefault: boolean;
     createdAt: Date;
     _count: { items: number };
     items: { id: string }[]; // unchecked items
@@ -30,6 +31,11 @@ export function GroceryListCard({ list, onDeleted }: GroceryListCardProps) {
     onError: () => toast.error("Failed to delete list"),
   });
 
+  const { execute: execSetDefault } = useAction(setDefaultListAction, {
+    onSuccess: () => toast.success("Default list updated"),
+    onError: () => toast.error("Failed to update"),
+  });
+
   return (
     <div className="flex items-center gap-3 h-14 px-4 hover:bg-base-50 group rounded-xl border border-base-200 bg-white">
       <div className="h-8 w-8 rounded flex-shrink-0 bg-base-100 flex items-center justify-center">
@@ -37,7 +43,12 @@ export function GroceryListCard({ list, onDeleted }: GroceryListCardProps) {
       </div>
 
       <Link href={`/groceries/${list.id}`} className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-base-800 truncate">{list.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-base-800 truncate">{list.name}</p>
+          {list.isDefault && (
+            <Star className="h-3.5 w-3.5 text-accent-500 fill-accent-500 shrink-0" />
+          )}
+        </div>
         <p className="text-xs text-base-400 mt-0.5">
           {unchecked === 0
             ? total === 0 ? "Empty" : "All done"
@@ -59,6 +70,16 @@ export function GroceryListCard({ list, onDeleted }: GroceryListCardProps) {
             {total - unchecked}/{total}
           </span>
         </div>
+      )}
+
+      {!list.isDefault && (
+        <button
+          onClick={() => execSetDefault({ id: list.id })}
+          className="h-7 w-7 flex items-center justify-center rounded text-base-300 hover:text-accent-500 hover:bg-base-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+          title="Set as default"
+        >
+          <Star className="h-4 w-4" />
+        </button>
       )}
 
       <button

@@ -46,6 +46,7 @@ export async function createRecipe(data: {
   cookMinutes?: number;
   instructions?: string;
   parseStatus?: string;
+  parsingError?: string | null;
 }) {
   return prisma.recipe.create({ data });
 }
@@ -62,6 +63,7 @@ export async function updateRecipe(
     cookMinutes?: number;
     instructions?: string;
     parseStatus?: string;
+    parsingError?: string | null;
   }
 ) {
   return prisma.recipe.update({ where: { id }, data });

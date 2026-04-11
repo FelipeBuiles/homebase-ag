@@ -9,6 +9,13 @@ import { listPantryItems, getWarnDays } from "@/lib/db/queries/pantry";
 import { PantryListClient } from "@/components/pantry/pantry-list-client";
 import { ExpirationScanButton } from "@/components/pantry/expiration-scan-button";
 import { cn } from "@/lib/utils";
+import { getCookFromPantrySections } from "@/lib/recipes/pantry-coverage";
+import { CookFromPantry } from "@/components/pantry/cook-from-pantry";
+import { getRunningLowPantryItems } from "@/lib/db/queries/pantry";
+import { getPantryStockSignal } from "@/lib/pantry-utils";
+import { RunningLowPanel } from "@/components/pantry/running-low-panel";
+import { Input } from "@/components/ui/input";
+import { getI18n } from "@/lib/i18n/server";
 
 interface PageProps {
   searchParams: Promise<{ search?: string; tab?: string }>;
@@ -22,53 +29,70 @@ const tabs = [
 
 export default async function PantryPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  const { t } = await getI18n();
   const tab = (params.tab as "all" | "expiring" | "expired") ?? "all";
+  const [sections, runningLowItems] = await Promise.all([
+    getCookFromPantrySections(),
+    getRunningLowPantryItems(),
+  ]);
+  const lowStockItems = runningLowItems.filter((item) => getPantryStockSignal(item) === "low");
 
   return (
     <PageShell
-      title="Pantry"
+      title={t("pages.pantry.title")}
+      description={t("pages.pantry.description")}
       action={
         <div className="flex items-center gap-2">
           <ExpirationScanButton />
-          <Button size="sm" render={<Link href="/pantry/new" />}>
+          <Button size="sm" nativeButton={false} render={<Link href="/pantry/new" />}>
             <Plus className="h-4 w-4" />
-            Add item
+            {t("pages.pantry.addItem")}
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
-        {/* Search */}
-        <form method="get" className="flex gap-2">
-          <input
-            name="search"
-            defaultValue={params.search}
-            placeholder="Search pantry..."
-            className="flex-1 h-8 rounded-lg border border-base-200 bg-white px-3 text-sm text-base-800 placeholder:text-base-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500"
-          />
-          {params.tab && <input type="hidden" name="tab" value={params.tab} />}
-        </form>
+        <CookFromPantry sections={sections} />
+        <RunningLowPanel items={lowStockItems.slice(0, 6)} />
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2">
-          {tabs.map((t) => (
-            <Link
-              key={t.label}
-              href={
-                t.value
-                  ? `/pantry?tab=${t.value}${params.search ? `&search=${params.search}` : ""}`
-                  : `/pantry${params.search ? `?search=${params.search}` : ""}`
-              }
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                (tab === t.value || (!params.tab && !t.value))
-                  ? "bg-accent-500 text-white"
-                  : "bg-base-100 text-base-600 hover:bg-base-200"
-              )}
-            >
-              {t.label}
-            </Link>
-          ))}
+        <div className="rounded-2xl border border-base-200 bg-white p-4 shadow-sm">
+          <form method="get" className="flex gap-2">
+            <Input
+              name="search"
+              defaultValue={params.search}
+              placeholder={t("pages.pantry.searchPlaceholder")}
+              className="flex-1"
+            />
+            {params.tab && <input type="hidden" name="tab" value={params.tab} />}
+            <Button type="submit" size="sm" variant="outline">
+              {t("common.search")}
+            </Button>
+          </form>
+
+          <div className="mt-3 flex items-center gap-2">
+            {tabs.map((tabOption) => (
+              <Link
+                key={tabOption.label}
+                href={
+                  tabOption.value
+                    ? `/pantry?tab=${tabOption.value}${params.search ? `&search=${params.search}` : ""}`
+                    : `/pantry${params.search ? `?search=${params.search}` : ""}`
+                }
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                  (tab === tabOption.value || (!params.tab && !tabOption.value))
+                    ? "bg-accent-500 text-white"
+                    : "bg-base-100 text-base-600 hover:bg-base-200"
+                )}
+              >
+                {tabOption.value === "expiring"
+                  ? t("pages.pantry.tab.expiring")
+                  : tabOption.value === "expired"
+                    ? t("pages.pantry.tab.expired")
+                    : t("pages.pantry.tab.all")}
+              </Link>
+            ))}
+          </div>
         </div>
 
         <Suspense fallback={<ListSkeleton />}>

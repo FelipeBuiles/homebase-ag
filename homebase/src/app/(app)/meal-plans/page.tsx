@@ -1,16 +1,23 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { CalendarDays, Trash2 } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { PageShell } from "@/components/layout/page-shell";
 import { EmptyState } from "@/components/layout/empty-state";
 import { ListSkeleton } from "@/components/layout/loading-skeleton";
 import { listMealPlans } from "@/lib/db/queries/meal-plans";
 import { CreatePlanButton } from "@/components/meal-plans/create-plan-button";
 import { formatDate } from "@/lib/utils";
+import { getI18n } from "@/lib/i18n/server";
 
-export default function MealPlansPage() {
+export default async function MealPlansPage() {
+  const { t } = await getI18n();
+
   return (
-    <PageShell title="Meal Plans" action={<CreatePlanButton />}>
+    <PageShell
+      title={t("pages.mealPlans.title")}
+      description={t("pages.mealPlans.description")}
+      action={<CreatePlanButton />}
+    >
       <Suspense fallback={<ListSkeleton />}>
         <MealPlanList />
       </Suspense>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, Pencil, Trash2, MoreHorizontal, PackageOpen } from "lucide-react";
+import { Archive, Pencil, Trash2, MoreHorizontal, PackageOpen, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -12,10 +12,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAction } from "next-safe-action/hooks";
-import { markOpenedAction, deletePantryItemAction } from "@/actions/pantry";
+import { markOpenedAction, deletePantryItemAction, updatePantryStatusAction } from "@/actions/pantry";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { formatRelativeDate } from "@/lib/utils";
+import { cn, formatRelativeDate } from "@/lib/utils";
+import {
+  type PantryLifecycleStatus,
+  lifecycleStatusVariant,
+  lifecycleStatusLabel,
+  expiryStatusVariant as statusVariant,
+  expiryStatusLabel as statusLabel,
+  getExpiryStatus,
+  getPantryStockSignal,
+} from "@/lib/pantry-utils";
+import { RestockButton } from "@/components/pantry/restock-button";
 
 interface PantryRowProps {
   item: {
@@ -27,42 +36,21 @@ interface PantryRowProps {
     unit?: string | null;
     expiresAt?: Date | null;
     openedAt?: Date | null;
+    status?: string | null;
   };
   warnDays?: number;
   onDeleted?: (id: string) => void;
 }
 
-type ExpiryStatus = "expired" | "expiring" | "fresh" | "none";
-
-function getExpiryStatus(expiresAt: Date | null | undefined, warnDays = 7): ExpiryStatus {
-  if (!expiresAt) return "none";
-  const now = new Date();
-  const warnDate = new Date(now.getTime() + warnDays * 24 * 60 * 60 * 1000);
-  if (expiresAt < now) return "expired";
-  if (expiresAt < warnDate) return "expiring";
-  return "fresh";
-}
-
-const statusVariant: Record<ExpiryStatus, "danger" | "warning" | "success" | "default"> = {
-  expired: "danger",
-  expiring: "warning",
-  fresh: "success",
-  none: "default",
-};
-
-const statusLabel: Record<ExpiryStatus, string> = {
-  expired: "Expired",
-  expiring: "Expiring",
-  fresh: "Fresh",
-  none: "No date",
-};
-
 export function PantryRow({ item, warnDays = 7, onDeleted }: PantryRowProps) {
   const router = useRouter();
   const status = getExpiryStatus(item.expiresAt, warnDays);
+  const lifecycle = (item.status ?? "in_stock") as PantryLifecycleStatus;
+  const isNotInStock = lifecycle !== "in_stock";
+  const stockSignal = getPantryStockSignal(item);
 
   const { execute: execMarkOpened } = useAction(markOpenedAction, {
-    onSuccess: () => toast.success("Marked as opened"),
+    onSuccess: () => { toast.success("Marked as opened"); router.refresh(); },
     onError: () => toast.error("Failed to update"),
   });
 
@@ -74,10 +62,15 @@ export function PantryRow({ item, warnDays = 7, onDeleted }: PantryRowProps) {
     onError: () => toast.error("Failed to remove item"),
   });
 
+  const { execute: execStatus } = useAction(updatePantryStatusAction, {
+    onSuccess: () => { toast.success("Status updated"); router.refresh(); },
+    onError: () => toast.error("Failed to update status"),
+  });
+
   const qtyLabel = item.unit ? `${item.quantity} ${item.unit}` : `×${item.quantity}`;
 
   return (
-    <div className="flex items-center gap-3 h-14 px-4 hover:bg-base-50 group">
+    <div className={cn("flex items-center gap-3 h-14 px-4 hover:bg-base-50 group", isNotInStock && "opacity-60")}>
       {/* Icon */}
       <div className="h-8 w-8 rounded flex-shrink-0 bg-base-100 flex items-center justify-center">
         <Archive className="h-4 w-4 text-base-400" />
@@ -86,7 +79,7 @@ export function PantryRow({ item, warnDays = 7, onDeleted }: PantryRowProps) {
       {/* Name + meta */}
       <Link href={`/pantry/${item.id}`} className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="text-sm font-medium text-base-800 truncate">{item.name}</span>
+          <span className={cn("text-sm font-medium truncate", isNotInStock ? "text-base-500 line-through" : "text-base-800")}>{item.name}</span>
           {item.brand && (
             <span className="text-xs text-base-400 truncate hidden sm:block">{item.brand}</span>
           )}
@@ -111,10 +104,25 @@ export function PantryRow({ item, warnDays = 7, onDeleted }: PantryRowProps) {
       {/* Qty */}
       <span className="text-xs text-base-500 tabular-nums hidden sm:block">{qtyLabel}</span>
 
-      {/* Status badge */}
-      <Badge variant={statusVariant[status]} className="hidden sm:inline-flex">
-        {statusLabel[status]}
-      </Badge>
+      {/* Lifecycle status badge */}
+      {lifecycle !== "in_stock" && (
+        <Badge variant={lifecycleStatusVariant[lifecycle]} className="hidden sm:inline-flex">
+          {lifecycleStatusLabel[lifecycle]}
+        </Badge>
+      )}
+
+      {/* Expiry badge */}
+      {lifecycle === "in_stock" && (
+        <Badge variant={statusVariant[status]} className="hidden sm:inline-flex">
+          {statusLabel[status]}
+        </Badge>
+      )}
+
+      {stockSignal === "low" && lifecycle === "in_stock" && (
+        <div className="hidden md:block">
+          <RestockButton pantryItemId={item.id} name={item.name} quantity={item.quantity} unit={item.unit} compact />
+        </div>
+      )}
 
       {/* Action menu */}
       <DropdownMenu>
@@ -131,10 +139,29 @@ export function PantryRow({ item, warnDays = 7, onDeleted }: PantryRowProps) {
             <Pencil className="h-3.5 w-3.5 mr-2" />
             Edit
           </DropdownMenuItem>
-          {!item.openedAt && (
+          {!item.openedAt && lifecycle === "in_stock" && (
             <DropdownMenuItem onClick={() => execMarkOpened({ id: item.id })}>
               <PackageOpen className="h-3.5 w-3.5 mr-2" />
               Mark as opened
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => execStatus({ id: item.id, status: "consumed" })}>
+            <CheckCircle className="h-3.5 w-3.5 mr-2" />
+            Mark consumed
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => execStatus({ id: item.id, status: "discarded" })}>
+            <XCircle className="h-3.5 w-3.5 mr-2" />
+            Mark discarded
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => execStatus({ id: item.id, status: "out_of_stock" })}>
+            <AlertCircle className="h-3.5 w-3.5 mr-2" />
+            Out of stock
+          </DropdownMenuItem>
+          {lifecycle !== "in_stock" && (
+            <DropdownMenuItem onClick={() => execStatus({ id: item.id, status: "in_stock" })}>
+              <Archive className="h-3.5 w-3.5 mr-2" />
+              Back in stock
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />

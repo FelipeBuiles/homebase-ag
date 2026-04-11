@@ -1,16 +1,24 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import {
   createRecipe,
   updateRecipe,
   deleteRecipe,
+  getRecipe,
 } from "@/lib/db/queries/recipes";
-import { agentQueue } from "@/lib/agents/runner";
-
-const action = createSafeActionClient();
+import { executeRecipeParserAgent } from "@/lib/agents/execute";
+import { prisma } from "@/lib/db/client";
+import { action } from "@/lib/auth/action";
+import {
+  addGroceryItem,
+  buildCanonicalKey,
+  getDefaultGroceryList,
+  getGroceryListItems,
+} from "@/lib/db/queries/groceries";
+import { getPantryCoverageForRecipe } from "@/lib/recipes/pantry-coverage";
+import { encodeRecipeSource } from "@/lib/grocery-source";
 
 const RecipeSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -68,12 +76,102 @@ export const importFromUrl = action
       parseStatus: "pending",
     });
 
-    await agentQueue.add(
-      "recipe-parser",
-      { entityId: recipe.id, context: { url: parsedInput.url } },
-      { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
-    );
+    await executeRecipeParserAgent(recipe.id, parsedInput.url);
 
     revalidatePath("/recipes");
     return { recipe };
+  });
+
+export const retryParseAction = action
+  .schema(z.object({ recipeId: z.string() }))
+  .action(async ({ parsedInput }) => {
+    const recipe = await getRecipe(parsedInput.recipeId);
+    if (!recipe) return { error: "Recipe not found" };
+
+    await updateRecipe(parsedInput.recipeId, {
+      parseStatus: "pending",
+      parsingError: undefined,
+    });
+    // Update parsingUpdatedAt directly
+    await prisma.recipe.update({
+      where: { id: parsedInput.recipeId },
+      data: { parsingUpdatedAt: new Date() },
+    });
+
+    if (!recipe.sourceUrl) return { error: "Recipe has no source URL" };
+
+    await executeRecipeParserAgent(parsedInput.recipeId, recipe.sourceUrl);
+
+    revalidatePath(`/recipes/${parsedInput.recipeId}`);
+    revalidatePath("/recipes");
+    return { success: true };
+  });
+
+export const addRecipeToGroceriesAction = action
+  .schema(
+    z.object({
+      recipeId: z.string(),
+      listId: z.string().optional(),
+      mode: z.enum(["all", "missing"]).optional(),
+    })
+  )
+  .action(async ({ parsedInput }) => {
+    const recipe = await getRecipe(parsedInput.recipeId);
+    if (!recipe) return { error: "Recipe not found" };
+
+    let listId = parsedInput.listId;
+    if (!listId) {
+      const list = await getDefaultGroceryList();
+      listId = list.id;
+    }
+
+    const mode = parsedInput.mode ?? "all";
+    const existingItems = await getGroceryListItems(listId);
+    const existingKeys = new Set(
+      existingItems.map((item) => item.canonicalKey ?? buildCanonicalKey(item.name))
+    );
+
+    let ingredientsToAdd = recipe.ingredients.map((ing) => ({
+      name: ing.normalizedName ?? ing.name ?? ing.raw,
+      quantity: ing.quantity ?? undefined,
+      unit: ing.unit ?? undefined,
+    }));
+
+    if (mode === "missing") {
+      const coverage = await getPantryCoverageForRecipe(parsedInput.recipeId);
+      if (!coverage) return { error: "Recipe coverage not available" };
+
+      ingredientsToAdd = coverage.ingredients
+        .filter((ingredient) => ingredient.status === "missing")
+        .map((ingredient) => ({
+          name: ingredient.normalizedName ?? ingredient.name ?? ingredient.raw,
+          quantity: ingredient.quantity ?? undefined,
+          unit: ingredient.unit ?? undefined,
+        }));
+    }
+
+    const seen = new Set<string>();
+    let addedCount = 0;
+
+    for (const ing of ingredientsToAdd) {
+      const name = ing.name;
+      if (!name) continue;
+      const canonicalKey = buildCanonicalKey(name);
+      if (seen.has(canonicalKey)) continue;
+      if (existingKeys.has(canonicalKey)) continue;
+      seen.add(canonicalKey);
+
+      await addGroceryItem(listId, {
+        name,
+        quantity: ing.quantity ?? undefined,
+        unit: ing.unit ?? undefined,
+        source: encodeRecipeSource(recipe.title, mode),
+        canonicalKey,
+      });
+      addedCount += 1;
+    }
+
+    revalidatePath(`/groceries/${listId}`);
+    revalidatePath("/groceries");
+    return { listId, addedCount, mode, recipeTitle: recipe.title };
   });

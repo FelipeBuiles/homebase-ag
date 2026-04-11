@@ -6,6 +6,7 @@ import { GroceryListCard } from "./grocery-list-card";
 interface GroceryList {
   id: string;
   name: string;
+  isDefault: boolean;
   createdAt: Date;
   _count: { items: number };
   items: { id: string }[];

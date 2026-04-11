@@ -64,7 +64,11 @@ export function RecipeForm({ recipe }: RecipeFormProps) {
       cookMinutes: cookMinutes ? parseInt(cookMinutes) : undefined,
       instructions: instructions || undefined,
     };
-    isEdit ? execUpdate({ id: recipe.id, ...payload }) : execCreate(payload);
+    if (isEdit) {
+      execUpdate({ id: recipe.id, ...payload });
+    } else {
+      execCreate(payload);
+    }
   }
 
   const isPending = creating || updating;

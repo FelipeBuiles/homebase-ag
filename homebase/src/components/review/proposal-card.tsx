@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { acceptProposal, rejectProposal, acceptChange } from "@/actions/proposals";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 interface Change {
   id: string;
@@ -30,23 +30,33 @@ interface ProposalCardProps {
 }
 
 export function ProposalCard({ proposal, entityName }: ProposalCardProps) {
+  const router = useRouter();
   const [rationaleExpanded, setRationaleExpanded] = useState(false);
   const confidencePct = proposal.confidence != null
     ? Math.round(proposal.confidence * 100)
     : null;
 
   const { execute: accept, isPending: accepting } = useAction(acceptProposal, {
-    onSuccess: () => toast.success("Changes applied"),
+    onSuccess: () => {
+      toast.success("Changes applied");
+      router.refresh();
+    },
     onError: () => toast.error("Failed to apply changes"),
   });
 
   const { execute: reject, isPending: rejecting } = useAction(rejectProposal, {
-    onSuccess: () => toast.success("Proposal dismissed"),
+    onSuccess: () => {
+      toast.success("Proposal dismissed");
+      router.refresh();
+    },
     onError: () => toast.error("Failed to reject proposal"),
   });
 
   const { execute: acceptOne } = useAction(acceptChange, {
-    onSuccess: () => toast.success("Field updated"),
+    onSuccess: () => {
+      toast.success("Field updated");
+      router.refresh();
+    },
     onError: () => toast.error("Failed to apply change"),
   });
 
@@ -92,12 +102,14 @@ export function ProposalCard({ proposal, entityName }: ProposalCardProps) {
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => acceptOne({ proposalId: proposal.id, field: change.field })}
-              className="text-xs text-accent-600 hover:text-accent-700 font-medium shrink-0"
-            >
-              Apply
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => acceptOne({ proposalId: proposal.id, field: change.field })}
+                className="text-xs text-accent-600 hover:text-accent-700 font-medium"
+              >
+                Apply
+              </button>
+            </div>
           </div>
         ))}
       </div>

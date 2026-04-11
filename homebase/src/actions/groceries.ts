@@ -1,6 +1,5 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import {
@@ -9,15 +8,17 @@ import {
   addGroceryItem,
   removeGroceryItem,
   toggleGroceryItem,
+  findDuplicatesInList,
+  mergeGroceryItems,
+  setDefaultGroceryList,
 } from "@/lib/db/queries/groceries";
-import { agentQueue } from "@/lib/agents/runner";
-
-const action = createSafeActionClient();
+import { executeNormalizationAgent } from "@/lib/agents/execute";
+import { action } from "@/lib/auth/action";
 
 export const createGroceryListAction = action
-  .schema(z.object({ name: z.string().min(1, "Name is required") }))
+  .schema(z.object({ name: z.string().min(1, "Name is required"), isDefault: z.boolean().optional() }))
   .action(async ({ parsedInput }) => {
-    const list = await createGroceryList(parsedInput.name);
+    const list = await createGroceryList(parsedInput.name, parsedInput.isDefault);
     revalidatePath("/groceries");
     return { list };
   });
@@ -30,6 +31,14 @@ export const deleteGroceryListAction = action
     return { success: true };
   });
 
+export const setDefaultListAction = action
+  .schema(z.object({ id: z.string() }))
+  .action(async ({ parsedInput }) => {
+    await setDefaultGroceryList(parsedInput.id);
+    revalidatePath("/groceries");
+    return { success: true };
+  });
+
 export const addGroceryItemAction = action
   .schema(
     z.object({
@@ -37,6 +46,7 @@ export const addGroceryItemAction = action
       name: z.string().min(1, "Item name is required"),
       quantity: z.string().optional(),
       unit: z.string().optional(),
+      source: z.string().optional(),
     })
   )
   .action(async ({ parsedInput }) => {
@@ -65,6 +75,22 @@ export const toggleGroceryItemAction = action
 export const normalizeListAction = action
   .schema(z.object({ listId: z.string() }))
   .action(async ({ parsedInput }) => {
-    await agentQueue.add("normalization", { entityId: parsedInput.listId });
-    return { queued: true };
+    const result = await executeNormalizationAgent(parsedInput.listId);
+    revalidatePath(`/groceries/${parsedInput.listId}`);
+    return { success: true, proposalCount: result.proposalCount };
+  });
+
+export const checkDuplicatesAction = action
+  .schema(z.object({ listId: z.string() }))
+  .action(async ({ parsedInput }) => {
+    const groups = await findDuplicatesInList(parsedInput.listId);
+    return { groups };
+  });
+
+export const mergeDuplicatesAction = action
+  .schema(z.object({ keepId: z.string(), mergeIds: z.array(z.string()), listId: z.string() }))
+  .action(async ({ parsedInput }) => {
+    await mergeGroceryItems(parsedInput.keepId, parsedInput.mergeIds);
+    revalidatePath(`/groceries/${parsedInput.listId}`);
+    return { success: true };
   });

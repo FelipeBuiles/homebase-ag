@@ -15,6 +15,7 @@ model User {
 
 model AppConfig {
   id             String  @id @default("singleton")
+  appLocale      String  @default("en")
   llmProvider    String  @default("openrouter")
   textModel      String  @default("google/gemini-2.0-flash-001")
   visionModel    String  @default("google/gemini-2.0-flash-001")
@@ -30,23 +31,26 @@ model AgentConfig {
   enabled       Boolean  @default(true)
   llmOverride   String?
   modelOverride String?
+  userPrompt    String?
   updatedAt     DateTime @updatedAt
 }
 
 model InventoryItem {
-  id           String                @id @default(cuid())
-  name         String
-  brand        String?
-  condition    String                @default("good")
-  quantity     Int                   @default(1)
-  notes        String?
-  categories   String[]
-  rooms        String[]
-  tags         String[]
-  completeness Int                   @default(0)
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  attachments  InventoryAttachment[]
+  id               String                @id @default(cuid())
+  name             String
+  brand            String?
+  condition        String                @default("good")
+  quantity         Int                   @default(1)
+  notes            String?
+  categories       String[]
+  rooms            String[]
+  tags             String[]
+  completeness     Int                   @default(0)
+  enrichmentStatus String                @default("pending")
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  attachments      InventoryAttachment[]
+  pantryItems      PantryItem[]
 }
 
 model InventoryAttachment {
@@ -64,6 +68,7 @@ model InventoryAttachment {
 model GroceryList {
   id        String        @id @default(cuid())
   name      String
+  isDefault Boolean       @default(false)
   items     GroceryItem[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -75,28 +80,32 @@ model GroceryItem {
   list           GroceryList @relation(fields: [listId], references: [id], onDelete: Cascade)
   name           String
   normalizedName String?
+  canonicalKey   String?
   quantity       String?
   unit           String?
   checked        Boolean     @default(false)
-  source         String?
+  source         String      @default("manual")
+  mergedFrom     Json?
   createdAt      DateTime    @default(now())
 }
 
 model Recipe {
-  id           String             @id @default(cuid())
-  title        String
-  description  String?
-  sourceUrl    String?
-  imageUrl     String?
-  servings     Int?
-  prepMinutes  Int?
-  cookMinutes  Int?
-  instructions String?
-  parseStatus  String             @default("pending")
-  ingredients  RecipeIngredient[]
-  mealItems    MealPlanItem[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id              String             @id @default(cuid())
+  title           String
+  description     String?
+  sourceUrl       String?
+  imageUrl        String?
+  servings        Int?
+  prepMinutes     Int?
+  cookMinutes     Int?
+  instructions    String?
+  parseStatus     String             @default("pending")
+  parsingError    String?
+  parsingUpdatedAt DateTime?
+  ingredients     RecipeIngredient[]
+  mealItems       MealPlanItem[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 }
 
 model RecipeIngredient {
@@ -112,17 +121,23 @@ model RecipeIngredient {
 }
 
 model PantryItem {
-  id        String    @id @default(cuid())
-  name      String
-  brand     String?
-  location  String?
-  quantity  Float     @default(1)
-  unit      String?
-  expiresAt DateTime?
-  openedAt  DateTime?
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  brand            String?
+  location         String?
+  quantity         Float    @default(1)
+  unit             String?
+  expiresAt        DateTime?
+  openedAt         DateTime?
+  notes            String?
+  status           String   @default("in_stock")
+  statusUpdatedAt  DateTime @default(now())
+  inventoryItemId  String?
+  inventoryItem    InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([inventoryItemId])
 }
 
 model MealPlan {
@@ -143,6 +158,7 @@ model MealPlanItem {
   date     DateTime
   mealType String
   servings Int      @default(1)
+  notes    String?
 }
 
 model Proposal {

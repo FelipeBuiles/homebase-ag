@@ -12,6 +12,7 @@ interface PantryItem {
   unit?: string | null;
   expiresAt?: Date | null;
   openedAt?: Date | null;
+  status?: string | null;
 }
 
 export function PantryListClient({

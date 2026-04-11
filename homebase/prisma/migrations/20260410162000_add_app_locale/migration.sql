@@ -1,0 +1,2 @@
+ALTER TABLE "AppConfig"
+ADD COLUMN "appLocale" TEXT NOT NULL DEFAULT 'en';

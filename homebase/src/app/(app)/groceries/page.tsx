@@ -6,11 +6,15 @@ import { ListSkeleton } from "@/components/layout/loading-skeleton";
 import { listGroceryLists } from "@/lib/db/queries/groceries";
 import { GroceryListIndexClient } from "@/components/groceries/grocery-list-index-client";
 import { CreateListButton } from "@/components/groceries/create-list-button";
+import { getI18n } from "@/lib/i18n/server";
 
-export default function GroceriesPage() {
+export default async function GroceriesPage() {
+  const { t } = await getI18n();
+
   return (
     <PageShell
-      title="Groceries"
+      title={t("pages.groceries.title")}
+      description={t("pages.groceries.description")}
       action={<CreateListButton />}
     >
       <Suspense fallback={<ListSkeleton />}>

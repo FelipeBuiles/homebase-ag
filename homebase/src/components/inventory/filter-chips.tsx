@@ -10,12 +10,18 @@ interface FilterChipsProps {
     categories: string[];
     rooms: string[];
     tags: string[];
+    enrichmentStatuses: string[];
+    hasAttachmentsAvailable: boolean;
+    hasNoAttachmentsAvailable: boolean;
   };
   active: {
     search?: string;
     category?: string;
     room?: string;
     tag?: string;
+    enrichmentStatus?: string;
+    hasAttachments?: string;
+    completeness?: string;
   };
 }
 
@@ -48,7 +54,7 @@ export function FilterChips({ filterValues, active }: FilterChipsProps) {
     router.push(pathname);
   }
 
-  const hasFilters = active.search || active.category || active.room || active.tag;
+  const hasFilters = active.search || active.category || active.room || active.tag || active.enrichmentStatus || active.hasAttachments || active.completeness;
 
   return (
     <div className="space-y-3">
@@ -67,7 +73,10 @@ export function FilterChips({ filterValues, active }: FilterChipsProps) {
       {/* Filter chips */}
       {(filterValues.categories.length > 0 ||
         filterValues.rooms.length > 0 ||
-        filterValues.tags.length > 0) && (
+        filterValues.tags.length > 0 ||
+        filterValues.enrichmentStatuses.length > 0 ||
+        filterValues.hasAttachmentsAvailable ||
+        filterValues.hasNoAttachmentsAvailable) && (
         <div className="flex flex-wrap gap-1.5 items-center">
           {filterValues.rooms.map((room) => (
             <Chip
@@ -101,6 +110,47 @@ export function FilterChips({ filterValues, active }: FilterChipsProps) {
               active={active.tag === tag}
               onClick={() =>
                 setParam("tag", active.tag === tag ? undefined : tag)
+              }
+            />
+          ))}
+
+          {/* Completeness filter */}
+          <Chip
+            label="Needs details"
+            active={active.completeness === "incomplete"}
+            onClick={() =>
+              setParam("completeness", active.completeness === "incomplete" ? undefined : "incomplete")
+            }
+          />
+
+          {/* Attachment filters */}
+          {filterValues.hasAttachmentsAvailable && (
+            <Chip
+              label="Has photo"
+              active={active.hasAttachments === "yes"}
+              onClick={() =>
+                setParam("hasAttachments", active.hasAttachments === "yes" ? undefined : "yes")
+              }
+            />
+          )}
+          {filterValues.hasNoAttachmentsAvailable && (
+            <Chip
+              label="No photo"
+              active={active.hasAttachments === "no"}
+              onClick={() =>
+                setParam("hasAttachments", active.hasAttachments === "no" ? undefined : "no")
+              }
+            />
+          )}
+
+          {/* Enrichment status filters */}
+          {filterValues.enrichmentStatuses.map((status) => (
+            <Chip
+              key={status}
+              label={`Pending enrichment`}
+              active={active.enrichmentStatus === status}
+              onClick={() =>
+                setParam("enrichmentStatus", active.enrichmentStatus === status ? undefined : status)
               }
             />
           ))}

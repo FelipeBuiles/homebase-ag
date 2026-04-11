@@ -1,1 +1,4 @@
 .worktrees/
+.next/
+.playwright-cli/
+homebase/.next/

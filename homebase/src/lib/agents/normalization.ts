@@ -33,6 +33,30 @@ const NormalizationOutputSchema = z.preprocess((val) => {
     // Find first array-valued key and treat it as items
     const arr = Object.values(val as Record<string, unknown>).find(Array.isArray);
     if (arr) return { items: arr };
+    // Some models return an object keyed by grocery item id
+    const entries = Object.entries(val as Record<string, unknown>);
+    if (
+      entries.length > 0 &&
+      entries.every(([key, value]) => {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+        const record = value as Record<string, unknown>;
+        return (
+          typeof key === "string" &&
+          ("normalizedName" in record ||
+            "normalized_name" in record ||
+            "name" in record ||
+            "normalized" in record ||
+            "canonical" in record)
+        );
+      })
+    ) {
+      return {
+        items: entries.map(([id, value]) => ({
+          id,
+          ...(value as Record<string, unknown>),
+        })),
+      };
+    }
   }
   return val;
 }, z.object({ items: z.array(NormItemSchema) }));

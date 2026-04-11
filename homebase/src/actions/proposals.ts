@@ -1,16 +1,92 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
-import { resolveProposal, writeAuditLog } from "@/lib/db/queries/proposals";
+import {
+  resolveProposal,
+  resolveAllPending,
+  listPendingByAgent,
+  writeAuditLog,
+} from "@/lib/db/queries/proposals";
 import { updateInventoryItem } from "@/lib/db/queries/inventory";
 import { updatePantryItem } from "@/lib/db/queries/pantry";
 import { updateGroceryItem } from "@/lib/db/queries/groceries";
+import { addMealPlanItem } from "@/lib/db/queries/meal-plans";
+import { action } from "@/lib/auth/action";
 import type { JsonPatch } from "@/lib/agents/types";
 
-const action = createSafeActionClient();
+/** Map entityType to the route prefix for revalidation. */
+function entityPath(entityType: string, entityId: string): string {
+  const prefix: Record<string, string> = {
+    inventory: "/inventory",
+    pantry: "/pantry",
+    "grocery-item": "/groceries",
+    recipe: "/recipes",
+    "meal-plan": "/meal-plans",
+  };
+  return `${prefix[entityType] ?? "/"}/${entityId}`;
+}
+
+/** Apply a JSON Patch to the entity targeted by a proposal. */
+async function applyPatch(entityType: string, entityId: string, patch: JsonPatch[]) {
+  const updates: Record<string, unknown> = {};
+  for (const op of patch) {
+    const field = op.path.replace(/^\//, "");
+    if (op.op === "replace" || op.op === "add") {
+      updates[field] = op.value;
+    }
+  }
+
+  if (entityType === "inventory") {
+    await updateInventoryItem(entityId, updates as Parameters<typeof updateInventoryItem>[1]);
+  } else if (entityType === "pantry") {
+    await updatePantryItem(entityId, updates as Parameters<typeof updatePantryItem>[1]);
+  } else if (entityType === "grocery-item") {
+    await updateGroceryItem(entityId, updates as Parameters<typeof updateGroceryItem>[1]);
+  } else if (entityType === "meal-plan") {
+    const suggestions = updates.suggestions as Array<{
+      dayOffset: number;
+      mealType: string;
+      recipeId: string;
+    }> | undefined;
+    if (!suggestions || suggestions.length === 0) return;
+
+    const plan = await prisma.mealPlan.findUnique({
+      where: { id: entityId },
+      include: { items: true },
+    });
+    if (!plan) throw new Error("Meal plan not found");
+
+    const existingKeys = new Set(
+      plan.items.map((item) => `${item.date.toISOString().slice(0, 10)}:${item.mealType}`)
+    );
+
+    for (const suggestion of suggestions) {
+      const date = new Date(plan.weekStart);
+      date.setUTCDate(date.getUTCDate() + suggestion.dayOffset);
+      const key = `${date.toISOString().slice(0, 10)}:${suggestion.mealType}`;
+      if (existingKeys.has(key)) continue;
+
+      await addMealPlanItem({
+        planId: entityId,
+        recipeId: suggestion.recipeId,
+        date,
+        mealType: suggestion.mealType,
+      });
+      existingKeys.add(key);
+    }
+  }
+}
+
+/** Revalidate common paths after proposal resolution. */
+function revalidateAfterResolve(entityType?: string, entityId?: string | null) {
+  revalidatePath("/review");
+  revalidatePath("/activity");
+  if (entityType && entityId) {
+    revalidatePath(entityPath(entityType, entityId));
+  }
+}
 
 export const acceptProposal = action
   .schema(z.object({ proposalId: z.string() }))
@@ -21,41 +97,8 @@ export const acceptProposal = action
     });
     if (!proposal) return { error: "Proposal not found" };
 
-    // Apply patch to the entity
-    if (proposal.entityType === "inventory" && proposal.entityId) {
-      const patch = proposal.patch as JsonPatch[];
-      const updates: Record<string, unknown> = {};
-      for (const op of patch) {
-        const field = op.path.replace("/", "");
-        if (op.op === "replace" || op.op === "add") {
-          updates[field] = op.value;
-        }
-      }
-      await updateInventoryItem(proposal.entityId, updates as Parameters<typeof updateInventoryItem>[1]);
-    }
-
-    if (proposal.entityType === "pantry" && proposal.entityId) {
-      const patch = proposal.patch as JsonPatch[];
-      const updates: Record<string, unknown> = {};
-      for (const op of patch) {
-        const field = op.path.replace("/", "");
-        if (op.op === "replace" || op.op === "add") {
-          updates[field] = op.value;
-        }
-      }
-      await updatePantryItem(proposal.entityId, updates as Parameters<typeof updatePantryItem>[1]);
-    }
-
-    if (proposal.entityType === "grocery-item" && proposal.entityId) {
-      const patch = proposal.patch as JsonPatch[];
-      const updates: Record<string, unknown> = {};
-      for (const op of patch) {
-        const field = op.path.replace("/", "");
-        if (op.op === "replace" || op.op === "add") {
-          updates[field] = op.value;
-        }
-      }
-      await updateGroceryItem(proposal.entityId, updates as Parameters<typeof updateGroceryItem>[1]);
+    if (proposal.entityId) {
+      await applyPatch(proposal.entityType, proposal.entityId, proposal.patch as JsonPatch[]);
     }
 
     await resolveProposal(parsedInput.proposalId, "accepted");
@@ -67,9 +110,7 @@ export const acceptProposal = action
       meta: { proposalId: proposal.id, agentId: proposal.agentId },
     });
 
-    revalidatePath("/review");
-    revalidatePath("/activity");
-    if (proposal.entityId) revalidatePath(`/inventory/${proposal.entityId}`);
+    revalidateAfterResolve(proposal.entityType, proposal.entityId);
     return { success: true };
   });
 
@@ -90,8 +131,7 @@ export const rejectProposal = action
       meta: { proposalId: proposal.id, agentId: proposal.agentId },
     });
 
-    revalidatePath("/review");
-    revalidatePath("/activity");
+    revalidateAfterResolve(proposal.entityType, proposal.entityId);
     return { success: true };
   });
 
@@ -107,37 +147,13 @@ export const acceptChange = action
     const change = proposal.changes.find((c) => c.field === parsedInput.field);
     if (!change) return { error: "Change not found" };
 
-    // Apply just this one field
-    if (proposal.entityType === "inventory" && proposal.entityId) {
+    if (proposal.entityId) {
       const patch = proposal.patch as JsonPatch[];
       const op = patch.find((p) => p.path === `/${parsedInput.field}`);
       if (op && (op.op === "replace" || op.op === "add")) {
-        await updateInventoryItem(
-          proposal.entityId,
-          { [parsedInput.field]: op.value } as Parameters<typeof updateInventoryItem>[1]
-        );
-      }
-    }
-
-    if (proposal.entityType === "pantry" && proposal.entityId) {
-      const patch = proposal.patch as JsonPatch[];
-      const op = patch.find((p) => p.path === `/${parsedInput.field}`);
-      if (op && (op.op === "replace" || op.op === "add")) {
-        await updatePantryItem(
-          proposal.entityId,
-          { [parsedInput.field]: op.value } as Parameters<typeof updatePantryItem>[1]
-        );
-      }
-    }
-
-    if (proposal.entityType === "grocery-item" && proposal.entityId) {
-      const patch = proposal.patch as JsonPatch[];
-      const op = patch.find((p) => p.path === `/${parsedInput.field}`);
-      if (op && (op.op === "replace" || op.op === "add")) {
-        await updateGroceryItem(
-          proposal.entityId,
-          { [parsedInput.field]: op.value } as Parameters<typeof updateGroceryItem>[1]
-        );
+        await applyPatch(proposal.entityType, proposal.entityId, [
+          { op: op.op, path: op.path, value: op.value },
+        ]);
       }
     }
 
@@ -149,7 +165,90 @@ export const acceptChange = action
       meta: { proposalId: proposal.id, field: parsedInput.field },
     });
 
-    revalidatePath("/review");
-    if (proposal.entityId) revalidatePath(`/inventory/${proposal.entityId}`);
+    revalidateAfterResolve(proposal.entityType, proposal.entityId);
     return { success: true };
+  });
+
+export const acceptAllProposals = action
+  .schema(z.void())
+  .action(async () => {
+    const proposals = await prisma.proposal.findMany({
+      where: { status: "pending" },
+      include: { changes: true },
+    });
+
+    let applied = 0;
+    for (const proposal of proposals) {
+      try {
+        if (proposal.entityId) {
+          await applyPatch(proposal.entityType, proposal.entityId, proposal.patch as JsonPatch[]);
+        }
+        await resolveProposal(proposal.id, "accepted");
+        await writeAuditLog({
+          actor: "user",
+          action: "proposal.accepted",
+          entityType: proposal.entityType,
+          entityId: proposal.entityId ?? undefined,
+          meta: { proposalId: proposal.id, agentId: proposal.agentId },
+        });
+        applied++;
+      } catch {
+        // Skip failed proposals — user can handle individually
+      }
+    }
+
+    revalidatePath("/review");
+    revalidatePath("/activity");
+    revalidatePath("/pantry");
+    revalidatePath("/inventory");
+    revalidatePath("/groceries");
+    return { success: true, count: applied };
+  });
+
+export const rejectAllProposals = action
+  .schema(z.void())
+  .action(async () => {
+    const result = await resolveAllPending("rejected");
+    await writeAuditLog({
+      actor: "user",
+      action: "proposal.rejected_all",
+      meta: { count: result.count },
+    });
+
+    revalidatePath("/review");
+    revalidatePath("/activity");
+    return { success: true, count: result.count };
+  });
+
+export const acceptProposalsByAgent = action
+  .schema(z.object({ agentId: z.string() }))
+  .action(async ({ parsedInput }) => {
+    const proposals = await listPendingByAgent(parsedInput.agentId);
+
+    let applied = 0;
+    for (const proposal of proposals) {
+      try {
+        if (proposal.entityId) {
+          await applyPatch(proposal.entityType, proposal.entityId, proposal.patch as JsonPatch[]);
+        }
+        await resolveProposal(proposal.id, "accepted");
+        await writeAuditLog({
+          actor: "user",
+          action: "proposal.accepted",
+          entityType: proposal.entityType,
+          entityId: proposal.entityId ?? undefined,
+          meta: { proposalId: proposal.id, agentId: proposal.agentId },
+        });
+        applied++;
+      } catch {
+        // Skip failed proposals
+      }
+    }
+
+    revalidatePath("/review");
+    revalidatePath("/activity");
+    revalidatePath("/pantry");
+    revalidatePath("/inventory");
+    revalidatePath("/groceries");
+    return { success: true, count: applied };
   });

@@ -5,6 +5,7 @@ import { useAction } from "next-safe-action/hooks";
 import { updateLlmConfigAction } from "@/actions/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/components/i18n-provider";
 import { toast } from "sonner";
 
 const PROVIDERS = [
@@ -29,6 +30,7 @@ interface LlmConfigFormProps {
 }
 
 export function LlmConfigForm({ config }: LlmConfigFormProps) {
+  const { t } = useI18n();
   const [provider, setProvider] = useState<Provider>(config.llmProvider as Provider);
   const [textModel, setTextModel] = useState(config.textModel);
   const [visionModel, setVisionModel] = useState(config.visionModel);
@@ -36,8 +38,8 @@ export function LlmConfigForm({ config }: LlmConfigFormProps) {
   const [ollamaModel, setOllamaModel] = useState(config.ollamaModel);
 
   const { execute, isPending } = useAction(updateLlmConfigAction, {
-    onSuccess: () => toast.success("AI provider settings saved"),
-    onError: () => toast.error("Failed to save settings"),
+    onSuccess: () => toast.success(t("settings.ai.saved")),
+    onError: () => toast.error(t("settings.ai.failed")),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -47,7 +49,7 @@ export function LlmConfigForm({ config }: LlmConfigFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Field label="Provider">
+      <Field label={t("settings.ai.provider")}>
         <select
           value={provider}
           onChange={(e) => setProvider(e.target.value as Provider)}
@@ -61,14 +63,14 @@ export function LlmConfigForm({ config }: LlmConfigFormProps) {
 
       {provider === "ollama" ? (
         <>
-          <Field label="Ollama base URL">
+          <Field label={t("settings.ai.ollamaBaseUrl")}>
             <Input
               value={ollamaBaseUrl}
               onChange={(e) => setOllamaBaseUrl(e.target.value)}
               placeholder="http://localhost:11434"
             />
           </Field>
-          <Field label="Ollama model">
+          <Field label={t("settings.ai.ollamaModel")}>
             <Input
               value={ollamaModel}
               onChange={(e) => setOllamaModel(e.target.value)}
@@ -78,14 +80,14 @@ export function LlmConfigForm({ config }: LlmConfigFormProps) {
         </>
       ) : (
         <>
-          <Field label="Text model">
+          <Field label={t("settings.ai.textModel")}>
             <Input
               value={textModel}
               onChange={(e) => setTextModel(e.target.value)}
               placeholder="e.g. google/gemini-2.0-flash-001"
             />
           </Field>
-          <Field label="Vision model">
+          <Field label={t("settings.ai.visionModel")}>
             <Input
               value={visionModel}
               onChange={(e) => setVisionModel(e.target.value)}
@@ -96,7 +98,7 @@ export function LlmConfigForm({ config }: LlmConfigFormProps) {
       )}
 
       <Button type="submit" size="sm" disabled={isPending}>
-        {isPending ? "Saving..." : "Save"}
+        {isPending ? t("common.saving") : t("common.save")}
       </Button>
     </form>
   );

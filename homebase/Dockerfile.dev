@@ -1,0 +1,20 @@
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY prisma ./prisma
+RUN npx prisma generate
+
+RUN cp -R node_modules /opt/homebase-node_modules
+
+COPY docker/dev-entrypoint.sh /usr/local/bin/homebase-dev-entrypoint
+RUN chmod +x /usr/local/bin/homebase-dev-entrypoint
+
+# Note: Dev container runs as root. Named Docker volumes are created as root,
+# so switching to a non-root user causes permission errors on volume mounts.
+# A production Dockerfile (multi-stage build) should use USER node instead.
+
+ENTRYPOINT ["homebase-dev-entrypoint"]

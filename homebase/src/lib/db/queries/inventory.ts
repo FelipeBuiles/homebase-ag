@@ -5,10 +5,14 @@ export interface InventoryFilters {
   category?: string;
   room?: string;
   tag?: string;
+  enrichmentStatus?: string;
+  hasAttachments?: boolean;
+  completenessMin?: number;
+  completenessLt?: number;
 }
 
 export async function listInventoryItems(filters: InventoryFilters = {}) {
-  const { search, category, room, tag } = filters;
+  const { search, category, room, tag, enrichmentStatus, hasAttachments, completenessMin, completenessLt } = filters;
 
   const items = await prisma.inventoryItem.findMany({
     where: {
@@ -24,6 +28,14 @@ export async function listInventoryItems(filters: InventoryFilters = {}) {
         category ? { categories: { has: category } } : {},
         room ? { rooms: { has: room } } : {},
         tag ? { tags: { has: tag } } : {},
+        enrichmentStatus ? { enrichmentStatus: enrichmentStatus } : {},
+        hasAttachments === true
+          ? { attachments: { some: {} } }
+          : hasAttachments === false
+            ? { attachments: { none: {} } }
+            : {},
+        completenessMin != null ? { completeness: { gte: completenessMin } } : {},
+        completenessLt != null ? { completeness: { lt: completenessLt } } : {},
       ],
     },
     include: {
@@ -40,6 +52,18 @@ export async function getInventoryItem(id: string) {
     where: { id },
     include: {
       attachments: { orderBy: { createdAt: "asc" } },
+      pantryItems: {
+        where: { status: "in_stock" },
+        orderBy: [{ updatedAt: "desc" }],
+        select: {
+          id: true,
+          name: true,
+          quantity: true,
+          unit: true,
+          expiresAt: true,
+          status: true,
+        },
+      },
     },
   });
 }
@@ -116,23 +140,41 @@ export async function addInventoryAttachment(data: {
 
 export async function getDistinctFilterValues() {
   const items = await prisma.inventoryItem.findMany({
-    select: { categories: true, rooms: true, tags: true },
+    select: {
+      categories: true,
+      rooms: true,
+      tags: true,
+      enrichmentStatus: true,
+      attachments: { select: { id: true } },
+    },
   });
 
   const categories = new Set<string>();
   const rooms = new Set<string>();
   const tags = new Set<string>();
+  const enrichmentStatuses = new Set<string>();
+  let hasAnyWithAttachments = false;
+  let hasAnyWithoutAttachments = false;
 
   for (const item of items) {
     item.categories.forEach((c) => categories.add(c));
     item.rooms.forEach((r) => rooms.add(r));
     item.tags.forEach((t) => tags.add(t));
+    if (item.enrichmentStatus) enrichmentStatuses.add(item.enrichmentStatus);
+    if (item.attachments.length > 0) {
+      hasAnyWithAttachments = true;
+    } else {
+      hasAnyWithoutAttachments = true;
+    }
   }
 
   return {
     categories: Array.from(categories).sort(),
     rooms: Array.from(rooms).sort(),
     tags: Array.from(tags).sort(),
+    enrichmentStatuses: Array.from(enrichmentStatuses).sort(),
+    hasAttachmentsAvailable: hasAnyWithAttachments,
+    hasNoAttachmentsAvailable: hasAnyWithoutAttachments,
   };
 }
 

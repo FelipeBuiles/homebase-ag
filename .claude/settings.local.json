@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npx next:*)",
+      "Bash(git diff:*)",
+      "Bash(head:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find src:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

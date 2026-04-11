@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/client";
+import { getRequiredEnv, validateServerEnv } from "@/lib/env";
 
 export type LLMProvider = "openrouter" | "openai" | "anthropic" | "google" | "deepseek" | "ollama";
 export type ModelCapability = "text" | "vision";
@@ -13,6 +14,7 @@ export type ModelCapability = "text" | "vision";
  * 4. Hardcoded defaults (openrouter + gemini-2.0-flash)
  */
 export async function getModel(agentId?: string, capability: ModelCapability = "text") {
+  validateServerEnv();
   const config = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
   const agentConfig = agentId
     ? await prisma.agentConfig.findUnique({ where: { agentId } })
@@ -20,8 +22,8 @@ export async function getModel(agentId?: string, capability: ModelCapability = "
 
   const provider = (
     agentConfig?.llmOverride ??
-    process.env.LLM_PROVIDER ??
     config?.llmProvider ??
+    process.env.LLM_PROVIDER ??
     "openrouter"
   ) as LLMProvider;
 
@@ -43,14 +45,7 @@ export async function getModel(agentId?: string, capability: ModelCapability = "
 }
 
 function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(
-      `Missing required environment variable: ${key}\n` +
-      `Set it in .env.local and restart the server.`
-    );
-  }
-  return value;
+  return getRequiredEnv(key);
 }
 
 async function buildModel(
@@ -90,7 +85,7 @@ async function buildModel(
     case "ollama": {
       const { createOllama } = await import("ai-sdk-ollama");
       const ollama = createOllama({
-        baseURL: config?.ollamaBaseUrl ?? "http://localhost:11434/api",
+        baseURL: config?.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
       });
       return ollama(model);
     }

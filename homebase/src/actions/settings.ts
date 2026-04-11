@@ -1,18 +1,13 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/client";
-import { createHash } from "crypto";
 import { getSession } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
-
-const action = createSafeActionClient();
-
-function hashPassword(password: string) {
-  return createHash("sha256").update(password).digest("hex");
-}
+import { action } from "@/lib/auth/action";
+import { verifyPassword, hashPassword } from "@/lib/auth/password";
+import { clearDomainData, seedDemoData } from "@/lib/dev/demo-data";
 
 export const updateLlmConfigAction = action
   .schema(
@@ -41,6 +36,7 @@ export const updateAgentConfigAction = action
       enabled: z.boolean(),
       llmOverride: z.string().optional(),
       modelOverride: z.string().optional(),
+      userPrompt: z.string().optional(),
     })
   )
   .action(async ({ parsedInput }) => {
@@ -51,11 +47,13 @@ export const updateAgentConfigAction = action
         enabled: parsedInput.enabled,
         llmOverride: parsedInput.llmOverride || null,
         modelOverride: parsedInput.modelOverride || null,
+        userPrompt: parsedInput.userPrompt || null,
       },
       update: {
         enabled: parsedInput.enabled,
         llmOverride: parsedInput.llmOverride || null,
         modelOverride: parsedInput.modelOverride || null,
+        userPrompt: parsedInput.userPrompt || null,
       },
     });
     revalidatePath("/settings");
@@ -75,6 +73,30 @@ export const updatePantryWarnDaysAction = action
     return { success: true };
   });
 
+export const updateLocaleAction = action
+  .schema(z.object({ locale: z.enum(["en", "es", "fr"]) }))
+  .action(async ({ parsedInput }) => {
+    await prisma.appConfig.upsert({
+      where: { id: "singleton" },
+      create: {},
+      update: {},
+    });
+
+    try {
+      await prisma.$executeRaw`
+        UPDATE "AppConfig"
+        SET "appLocale" = ${parsedInput.locale}
+        WHERE "id" = 'singleton'
+      `;
+    } catch {
+      throw new Error("Locale column is not available yet. Apply the latest Prisma migration and restart the app.");
+    }
+
+    revalidatePath("/", "layout");
+    revalidatePath("/settings");
+    return { success: true };
+  });
+
 export const changePasswordAction = action
   .schema(
     z.object({
@@ -86,17 +108,60 @@ export const changePasswordAction = action
     const user = await prisma.user.findFirst();
     if (!user) return { error: "No user found" };
 
-    if (hashPassword(parsedInput.currentPassword) !== user.passwordHash) {
+    const valid = await verifyPassword(parsedInput.currentPassword, user.passwordHash ?? "");
+    if (!valid) {
       return { error: "Current password is incorrect" };
     }
 
+    const passwordHash = await hashPassword(parsedInput.newPassword);
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: hashPassword(parsedInput.newPassword) },
+      data: { passwordHash },
     });
 
     // Invalidate session so user must log in again
     const session = await getSession();
     session.destroy();
     redirect("/login");
+  });
+
+export const seedDemoDataAction = action
+  .schema(z.void())
+  .action(async () => {
+    await prisma.$transaction(async (tx) => {
+      await clearDomainData(tx);
+      await seedDemoData(tx);
+    });
+
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/inventory");
+    revalidatePath("/pantry");
+    revalidatePath("/recipes");
+    revalidatePath("/meal-plans");
+    revalidatePath("/groceries");
+    revalidatePath("/review");
+    revalidatePath("/activity");
+    revalidatePath("/settings");
+    return { success: true };
+  });
+
+export const clearAllDataAction = action
+  .schema(z.object({ confirmation: z.literal("CLEAR") }))
+  .action(async () => {
+    await prisma.$transaction(async (tx) => {
+      await clearDomainData(tx);
+    });
+
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/inventory");
+    revalidatePath("/pantry");
+    revalidatePath("/recipes");
+    revalidatePath("/meal-plans");
+    revalidatePath("/groceries");
+    revalidatePath("/review");
+    revalidatePath("/activity");
+    revalidatePath("/settings");
+    return { success: true };
   });

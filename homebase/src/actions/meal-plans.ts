@@ -1,6 +1,5 @@
 "use server";
 
-import { createSafeActionClient } from "next-safe-action";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -9,12 +8,14 @@ import {
   deleteMealPlan,
   addMealPlanItem,
   removeMealPlanItem,
+  duplicateMealPlan,
   getMealPlanForExport,
 } from "@/lib/db/queries/meal-plans";
-import { createGroceryList, addGroceryItem } from "@/lib/db/queries/groceries";
-import { agentQueue } from "@/lib/agents/runner";
-
-const action = createSafeActionClient();
+import { buildCanonicalKey, createGroceryList, addGroceryItem } from "@/lib/db/queries/groceries";
+import { executeChefAgent, executePantryMaintenanceAgent } from "@/lib/agents/execute";
+import { action } from "@/lib/auth/action";
+import { getPantryCoverageForRecipes } from "@/lib/recipes/pantry-coverage";
+import { encodeMealPlanSource } from "@/lib/grocery-source";
 
 export const createMealPlanAction = action
   .schema(
@@ -48,6 +49,7 @@ export const addMealPlanItemAction = action
       date: z.string(), // ISO date string
       mealType: z.string(),
       servings: z.number().int().positive().optional(),
+      notes: z.string().optional(),
     })
   )
   .action(async ({ parsedInput }) => {
@@ -57,6 +59,7 @@ export const addMealPlanItemAction = action
       date: new Date(parsedInput.date),
       mealType: parsedInput.mealType,
       servings: parsedInput.servings,
+      notes: parsedInput.notes,
     });
     revalidatePath(`/meal-plans/${parsedInput.planId}`);
     return { item };
@@ -70,27 +73,55 @@ export const removeMealPlanItemAction = action
     return { success: true };
   });
 
+export const duplicateMealPlanAction = action
+  .schema(
+    z.object({
+      sourceId: z.string(),
+      name: z.string().min(1, "Name is required"),
+      weekStart: z.string(),
+    })
+  )
+  .action(async ({ parsedInput }) => {
+    const plan = await duplicateMealPlan({
+      sourceId: parsedInput.sourceId,
+      name: parsedInput.name,
+      weekStart: new Date(parsedInput.weekStart),
+    });
+    revalidatePath("/meal-plans");
+    return { plan };
+  });
+
 export const exportToGroceriesAction = action
   .schema(z.object({ planId: z.string() }))
   .action(async ({ parsedInput }) => {
     const plan = await getMealPlanForExport(parsedInput.planId);
     if (!plan) return { error: "Plan not found" };
 
-    // Collect all ingredients across all planned recipes
     const groceryList = await createGroceryList(`${plan.name} — groceries`);
+    const recipeIds = Array.from(new Set(plan.items.map((item) => item.recipe.id)));
+    const coverageByRecipeId = await getPantryCoverageForRecipes(recipeIds);
 
     const seen = new Set<string>();
     for (const item of plan.items) {
+      const coverage = coverageByRecipeId.get(item.recipe.id);
+      const missingKeys = new Set(
+        coverage?.ingredients
+          .filter((ingredient) => ingredient.status === "missing")
+          .map((ingredient) => ingredient.key) ?? []
+      );
+
       for (const ing of item.recipe.ingredients) {
         const itemName = ing.normalizedName ?? ing.name ?? ing.raw;
         if (!itemName) continue;
-        const key = itemName.toLowerCase();
+        const key = buildCanonicalKey(itemName);
+        if (!missingKeys.has(key)) continue;
         if (seen.has(key)) continue;
         seen.add(key);
         await addGroceryItem(groceryList.id, {
           name: itemName,
           quantity: ing.quantity ?? undefined,
           unit: ing.unit ?? undefined,
+          source: encodeMealPlanSource(plan.name, "missing"),
         });
       }
     }
@@ -102,13 +133,17 @@ export const exportToGroceriesAction = action
 export const triggerChefAgentAction = action
   .schema(z.object({ planId: z.string() }))
   .action(async ({ parsedInput }) => {
-    await agentQueue.add("chef", { entityId: parsedInput.planId });
-    return { queued: true };
+    const result = await executeChefAgent(parsedInput.planId);
+    revalidatePath(`/meal-plans/${parsedInput.planId}`);
+    revalidatePath("/review");
+    return { success: true, proposalCount: result.proposalCount };
   });
 
 export const triggerPantryMaintenanceAction = action
   .schema(z.object({}))
   .action(async () => {
-    await agentQueue.add("pantry-maintenance", { entityId: "all" });
-    return { queued: true };
+    const result = await executePantryMaintenanceAgent();
+    revalidatePath("/pantry");
+    revalidatePath("/review");
+    return { success: true, proposalCount: result.proposalCount };
   });

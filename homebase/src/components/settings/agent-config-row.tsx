@@ -5,6 +5,7 @@ import { useAction } from "next-safe-action/hooks";
 import { updateAgentConfigAction } from "@/actions/settings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/i18n-provider";
 import { toast } from "sonner";
 
 interface AgentConfigRowProps {
@@ -14,18 +15,21 @@ interface AgentConfigRowProps {
     enabled: boolean;
     llmOverride?: string | null;
     modelOverride?: string | null;
+    userPrompt?: string | null;
   };
 }
 
 export function AgentConfigRow({ agentId, label, config }: AgentConfigRowProps) {
+  const { t } = useI18n();
   const [enabled, setEnabled] = useState(config?.enabled ?? true);
   const [llmOverride, setLlmOverride] = useState(config?.llmOverride ?? "");
   const [modelOverride, setModelOverride] = useState(config?.modelOverride ?? "");
+  const [userPrompt, setUserPrompt] = useState(config?.userPrompt ?? "");
   const [expanded, setExpanded] = useState(false);
 
   const { execute, isPending } = useAction(updateAgentConfigAction, {
-    onSuccess: () => toast.success(`${label} settings saved`),
-    onError: () => toast.error("Failed to save"),
+    onSuccess: () => toast.success(`${label} ${t("settings.agents.savedSuffix")}`),
+    onError: () => toast.error(t("settings.agents.failed")),
   });
 
   return (
@@ -40,7 +44,7 @@ export function AgentConfigRow({ agentId, label, config }: AgentConfigRowProps) 
             e.stopPropagation();
             const next = !enabled;
             setEnabled(next);
-            execute({ agentId, enabled: next, llmOverride: llmOverride || undefined, modelOverride: modelOverride || undefined });
+            execute({ agentId, enabled: next, llmOverride: llmOverride || undefined, modelOverride: modelOverride || undefined, userPrompt: userPrompt || undefined });
           }}
           className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${
             enabled ? "bg-accent-500" : "bg-base-300"
@@ -54,7 +58,7 @@ export function AgentConfigRow({ agentId, label, config }: AgentConfigRowProps) 
         </button>
         <span className="text-sm font-medium text-base-800 flex-1">{label}</span>
         <span className="text-xs text-base-400">
-          {llmOverride || modelOverride ? "Override active" : "Using global"}
+          {llmOverride || modelOverride || userPrompt ? t("settings.agents.overrideActive") : t("settings.agents.usingGlobal")}
         </span>
         <svg
           className={`h-4 w-4 text-base-400 transition-transform ${expanded ? "rotate-180" : ""}`}
@@ -70,31 +74,41 @@ export function AgentConfigRow({ agentId, label, config }: AgentConfigRowProps) 
         <div className="px-4 pb-4 pt-1 border-t border-base-100 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-base-600">Provider override</label>
+              <label className="text-xs font-medium text-base-600">{t("settings.agents.providerOverride")}</label>
               <Input
                 value={llmOverride}
                 onChange={(e) => setLlmOverride(e.target.value)}
-                placeholder="e.g. openai (leave blank for global)"
+                placeholder={t("settings.agents.providerPlaceholder")}
                 className="text-xs"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-base-600">Model override</label>
+              <label className="text-xs font-medium text-base-600">{t("settings.agents.modelOverride")}</label>
               <Input
                 value={modelOverride}
                 onChange={(e) => setModelOverride(e.target.value)}
-                placeholder="e.g. gpt-4o (leave blank for global)"
+                placeholder={t("settings.agents.modelPlaceholder")}
                 className="text-xs"
               />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-base-600">{t("settings.agents.customInstructions")}</label>
+            <textarea
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder={t("settings.agents.instructionsPlaceholder")}
+              rows={3}
+              className="w-full rounded-md border border-base-200 bg-white px-3 py-2 text-xs text-base-800 placeholder:text-base-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500 resize-none"
+            />
           </div>
           <Button
             size="sm"
             variant="outline"
             disabled={isPending}
-            onClick={() => execute({ agentId, enabled, llmOverride: llmOverride || undefined, modelOverride: modelOverride || undefined })}
+            onClick={() => execute({ agentId, enabled, llmOverride: llmOverride || undefined, modelOverride: modelOverride || undefined, userPrompt: userPrompt || undefined })}
           >
-            {isPending ? "Saving..." : "Save overrides"}
+            {isPending ? t("common.saving") : t("settings.agents.saveOverrides")}
           </Button>
         </div>
       )}

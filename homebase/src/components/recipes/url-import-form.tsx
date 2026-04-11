@@ -6,35 +6,37 @@ import { useAction } from "next-safe-action/hooks";
 import { importFromUrl } from "@/actions/recipes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/components/i18n-provider";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 
 export function UrlImportForm() {
+  const { t } = useI18n();
   const router = useRouter();
   const [url, setUrl] = useState("");
 
   const { execute, isPending } = useAction(importFromUrl, {
     onSuccess: ({ data }) => {
-      toast.success("Import started — parsing in background");
+      toast.success(t("recipes.import.started"));
       router.push(`/recipes/${data?.recipe?.id}`);
     },
     onError: ({ error }) => {
-      toast.error(error.validationErrors?.url?._errors?.[0] ?? "Failed to import recipe");
+      toast.error(error.validationErrors?.url?._errors?.[0] ?? t("recipes.import.failed"));
     },
   });
 
   return (
-    <div className="rounded-lg border border-agent-border bg-agent-bg p-6 space-y-4">
+    <div className="rounded-2xl border border-base-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-agent-text" />
-        <p className="text-sm font-medium text-agent-text">Import from URL</p>
+        <Sparkles className="h-4 w-4 text-accent-600" />
+        <p className="text-sm font-medium text-base-900">{t("recipes.import.title")}</p>
       </div>
-      <p className="text-xs text-agent-text/80">
-        Paste a recipe URL and the agent will extract the title, ingredients, and instructions automatically.
+      <p className="mt-1 text-sm text-base-600">
+        {t("recipes.import.description")}
       </p>
       <form
         onSubmit={(e) => { e.preventDefault(); execute({ url }); }}
-        className="flex gap-2"
+        className="mt-4 flex gap-2"
       >
         <Input
           value={url}
@@ -45,7 +47,7 @@ export function UrlImportForm() {
           className="flex-1"
         />
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Importing…" : "Import"}
+          {isPending ? t("recipes.import.running") : t("recipes.import.button")}
         </Button>
       </form>
     </div>

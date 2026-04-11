@@ -9,7 +9,7 @@ import {
   deleteInventoryItem,
   addInventoryAttachment,
 } from "@/lib/db/queries/inventory";
-import { agentQueue } from "@/lib/agents/runner";
+import { executeEnrichmentAgent } from "@/lib/agents/execute";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import sharp from "sharp";
@@ -134,8 +134,7 @@ export async function uploadAttachment(itemId: string, formData: FormData) {
     height: meta.height,
   });
 
-  // Enqueue enrichment agent
-  await agentQueue.add("enrichment", { entityId: itemId }, { attempts: 3, backoff: { type: "exponential", delay: 5000 } });
+  await executeEnrichmentAgent(itemId);
 
   revalidatePath(`/inventory/${itemId}`);
   revalidatePath("/inventory");

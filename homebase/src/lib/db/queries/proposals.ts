@@ -49,6 +49,42 @@ export async function resolveProposal(id: string, status: "accepted" | "rejected
   });
 }
 
+export async function resolveAllPending(status: "accepted" | "rejected") {
+  return prisma.proposal.updateMany({
+    where: { status: "pending" },
+    data: { status, resolvedAt: new Date() },
+  });
+}
+
+export async function listPendingByAgent(agentId: string) {
+  return prisma.proposal.findMany({
+    where: { status: "pending", agentId },
+    include: { changes: true },
+  });
+}
+
+export async function listPendingByEntity(entityType: string, entityId: string) {
+  return prisma.proposal.findMany({
+    where: { status: "pending", entityType, entityId },
+    include: { changes: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function listPendingByEntityIds(entityType: string, entityIds: string[]) {
+  if (entityIds.length === 0) return [];
+
+  return prisma.proposal.findMany({
+    where: {
+      status: "pending",
+      entityType,
+      entityId: { in: entityIds },
+    },
+    include: { changes: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function listActivityLog(limit = 50) {
   return prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },

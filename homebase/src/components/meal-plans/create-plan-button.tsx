@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { createMealPlanAction } from "@/actions/meal-plans";
+import { useI18n } from "@/components/i18n-provider";
 import { toast } from "sonner";
 
 function getMondayOfWeek(date: Date): Date {
@@ -30,6 +31,7 @@ function toDateInput(date: Date): string {
 }
 
 export function CreatePlanButton() {
+  const { t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -39,24 +41,24 @@ export function CreatePlanButton() {
 
   const { execute, isPending } = useAction(createMealPlanAction, {
     onSuccess: ({ data }) => {
-      toast.success("Meal plan created");
+      toast.success(t("mealPlans.createPlan.created"));
       setOpen(false);
       setName("");
       router.push(`/meal-plans/${data?.plan?.id}`);
     },
-    onError: () => toast.error("Failed to create meal plan"),
+    onError: () => toast.error(t("mealPlans.createPlan.failed")),
   });
 
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
         <Plus className="h-4 w-4" />
-        New plan
+        {t("mealPlans.createPlan")}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create meal plan</DialogTitle>
+            <DialogTitle>{t("mealPlans.createPlan.title")}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -66,16 +68,16 @@ export function CreatePlanButton() {
             className="space-y-4"
           >
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-base-700">Name</label>
+              <label className="text-sm font-medium text-base-700">{t("mealPlans.createPlan.name")}</label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Week of April 7"
+                placeholder={t("mealPlans.createPlan.namePlaceholder")}
                 autoFocus
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-base-700">Week starting (Monday)</label>
+              <label className="text-sm font-medium text-base-700">{t("mealPlans.createPlan.weekStart")}</label>
               <Input
                 type="date"
                 value={weekStart}
@@ -84,10 +86,10 @@ export function CreatePlanButton() {
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={isPending || !name.trim()}>
-                {isPending ? "Creating..." : "Create"}
+                {isPending ? t("mealPlans.createPlan.creating") : t("mealPlans.createPlan.create")}
               </Button>
             </DialogFooter>
           </form>

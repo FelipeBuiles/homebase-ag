@@ -12,20 +12,28 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 
 interface Recipe {
   id: string;
   title: string;
+  imageUrl?: string | null;
   sourceUrl?: string | null;
   prepMinutes?: number | null;
   cookMinutes?: number | null;
   parseStatus: string;
   _count: { ingredients: number };
+  coverage?: {
+    ingredientCount: number;
+    coveredIngredientCount: number;
+    partialIngredientCount: number;
+    missingIngredientCount: number;
+    expiringMatchCount: number;
+    cookNow: boolean;
+    usesExpiring: boolean;
+  } | null;
 }
 
 export function RecipeListClient({ recipes }: { recipes: Recipe[] }) {
-  const router = useRouter();
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const { execute, isPending } = useAction(deleteRecipeAction, {

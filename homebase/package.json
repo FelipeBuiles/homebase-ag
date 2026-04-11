@@ -3,10 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build --webpack",
     "start": "next start",
-    "workers": "tsx workers/index.ts",
     "lint": "eslint"
   },
   "dependencies": {
@@ -20,12 +19,9 @@
     "@tanstack/react-query": "^5.96.2",
     "ai": "^6.0.149",
     "ai-sdk-ollama": "^3.8.2",
-    "bullmq": "^5.73.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "ioredis": "^5.10.1",
     "iron-session": "^8.0.4",
-    "lightningcss-darwin-arm64": "^1.32.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.2",
     "next-safe-action": "^8.4.0",

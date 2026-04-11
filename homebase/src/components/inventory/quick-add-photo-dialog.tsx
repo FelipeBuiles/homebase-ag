@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { quickCreateWithPhoto } from "@/actions/inventory";
+import { useI18n } from "@/components/i18n-provider";
 import { toast } from "sonner";
 
 type Step = "capture" | "identifying" | "review" | "saving";
@@ -27,12 +28,13 @@ interface Suggestion {
 }
 
 export function QuickAddPhotoButton() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         <Camera className="h-4 w-4" />
-        Quick add
+        {t("pages.inventory.quickAdd")}
       </Button>
       <QuickAddPhotoDialog open={open} onClose={() => setOpen(false)} />
     </>
@@ -40,6 +42,7 @@ export function QuickAddPhotoButton() {
 }
 
 function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useI18n();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("capture");
@@ -101,7 +104,7 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
       setTags(data.tags);
       setStep("review");
     } catch {
-      setError("Couldn't identify the item. You can fill in the details manually.");
+      setError(t("inventory.quickAdd.identifyFailed"));
       setStep("review");
     }
   }
@@ -117,11 +120,11 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
         { name: name.trim(), brand: brand || undefined, condition, quantity: 1, categories, rooms, tags },
         fd
       );
-      toast.success("Item added");
+      toast.success(t("inventory.quickAdd.added"));
       handleClose();
       router.push(`/inventory/${result.item.id}`);
     } catch {
-      toast.error("Failed to save item");
+      toast.error(t("inventory.quickAdd.saveFailed"));
       setStep("review");
     }
   }
@@ -130,7 +133,7 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Quick add from photo</DialogTitle>
+          <DialogTitle>{t("inventory.quickAdd.title")}</DialogTitle>
         </DialogHeader>
 
         {step === "capture" && (
@@ -138,8 +141,8 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
             <label className="flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-base-300 bg-base-50 py-12 cursor-pointer hover:border-accent-400 hover:bg-accent-50/30 transition-colors">
               <Camera className="h-10 w-10 text-base-300" />
               <div className="text-center">
-                <p className="text-sm font-medium text-base-700">Take a photo or choose a file</p>
-                <p className="text-xs text-base-400 mt-0.5">The AI will identify the item automatically</p>
+                <p className="text-sm font-medium text-base-700">{t("inventory.quickAdd.captureTitle")}</p>
+                <p className="text-xs text-base-400 mt-0.5">{t("inventory.quickAdd.captureDescription")}</p>
               </div>
               <input
                 ref={fileRef}
@@ -163,7 +166,7 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
             )}
             <div className="flex items-center justify-center gap-3 py-4">
               <Loader2 className="h-5 w-5 animate-spin text-accent-500" />
-              <p className="text-sm text-base-600">Identifying item…</p>
+              <p className="text-sm text-base-600">{t("inventory.quickAdd.identifying")}</p>
             </div>
           </div>
         )}
@@ -189,53 +192,53 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
                   className="text-xs text-accent-600 hover:text-accent-700 flex items-center gap-1"
                 >
                   <RotateCcw className="h-3 w-3" />
-                  Use different photo
+                  {t("inventory.quickAdd.retry")}
                 </button>
               </div>
             </div>
 
             {/* Form */}
             <div className="space-y-3">
-              <FormField label="Name" required>
+              <FormField label={t("inventory.quickAdd.name")} required>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Item name"
+                  placeholder={t("inventory.quickAdd.namePlaceholder")}
                   autoFocus={!name}
                 />
               </FormField>
 
               <div className="grid grid-cols-2 gap-3">
-                <FormField label="Brand">
+                <FormField label={t("inventory.quickAdd.brand")}>
                   <Input
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
-                    placeholder="Brand"
+                    placeholder={t("inventory.quickAdd.brandPlaceholder")}
                   />
                 </FormField>
-                <FormField label="Condition">
+                <FormField label={t("inventory.quickAdd.condition")}>
                   <select
                     value={condition}
                     onChange={(e) => setCondition(e.target.value as "good" | "fair" | "poor")}
                     className="w-full h-8 rounded-lg border border-base-200 bg-white px-2.5 text-sm text-base-800 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500"
                   >
-                    <option value="good">Good</option>
-                    <option value="fair">Fair</option>
-                    <option value="poor">Poor</option>
+                    <option value="good">{t("inventory.quickAdd.good")}</option>
+                    <option value="fair">{t("inventory.quickAdd.fair")}</option>
+                    <option value="poor">{t("inventory.quickAdd.poor")}</option>
                   </select>
                 </FormField>
               </div>
 
-              <FormField label="Rooms">
-                <TagPills values={rooms} onChange={setRooms} placeholder="Add room…" />
+              <FormField label={t("inventory.quickAdd.rooms")}>
+                <TagPills values={rooms} onChange={setRooms} placeholder={t("inventory.quickAdd.roomPlaceholder")} />
               </FormField>
 
-              <FormField label="Categories">
-                <TagPills values={categories} onChange={setCategories} placeholder="Add category…" />
+              <FormField label={t("inventory.quickAdd.categories")}>
+                <TagPills values={categories} onChange={setCategories} placeholder={t("inventory.quickAdd.categoryPlaceholder")} />
               </FormField>
 
-              <FormField label="Tags">
-                <TagPills values={tags} onChange={setTags} placeholder="Add tag…" />
+              <FormField label={t("inventory.quickAdd.tags")}>
+                <TagPills values={tags} onChange={setTags} placeholder={t("inventory.quickAdd.tagPlaceholder")} />
               </FormField>
             </div>
 
@@ -245,13 +248,13 @@ function QuickAddPhotoDialog({ open, onClose }: { open: boolean; onClose: () => 
                 disabled={step === "saving" || !name.trim()}
               >
                 {step === "saving" ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {t("common.saving")}</>
                 ) : (
-                  "Add item"
+                  t("inventory.quickAdd.addItem")
                 )}
               </Button>
               <Button variant="ghost" onClick={handleClose} disabled={step === "saving"}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           </div>

@@ -20,6 +20,13 @@ interface PantryFormProps {
     expiresAt?: Date | null;
     openedAt?: Date | null;
     notes?: string | null;
+    status?: string | null;
+    inventoryItemId?: string | null;
+  };
+  itemDraft?: {
+    name?: string;
+    brand?: string;
+    inventoryItemId?: string;
   };
 }
 
@@ -28,18 +35,19 @@ function toDateInput(date?: Date | null): string {
   return new Date(date).toISOString().split("T")[0];
 }
 
-export function PantryForm({ item }: PantryFormProps) {
+export function PantryForm({ item, itemDraft }: PantryFormProps) {
   const router = useRouter();
   const isEdit = !!item;
 
-  const [name, setName] = useState(item?.name ?? "");
-  const [brand, setBrand] = useState(item?.brand ?? "");
+  const [name, setName] = useState(item?.name ?? itemDraft?.name ?? "");
+  const [brand, setBrand] = useState(item?.brand ?? itemDraft?.brand ?? "");
   const [location, setLocation] = useState(item?.location ?? "");
   const [quantity, setQuantity] = useState(item?.quantity ?? 1);
   const [unit, setUnit] = useState(item?.unit ?? "");
   const [expiresAt, setExpiresAt] = useState(toDateInput(item?.expiresAt));
   const [openedAt, setOpenedAt] = useState(toDateInput(item?.openedAt));
   const [notes, setNotes] = useState(item?.notes ?? "");
+  const [status, setStatus] = useState<string>(item?.status ?? "in_stock");
 
   const { execute: execCreate, isPending: creating } = useAction(createPantryItemAction, {
     onSuccess: ({ data }) => {
@@ -68,6 +76,8 @@ export function PantryForm({ item }: PantryFormProps) {
       expiresAt: expiresAt || undefined,
       openedAt: openedAt || undefined,
       notes: notes || undefined,
+      status: status as "in_stock" | "out_of_stock" | "consumed" | "discarded" | undefined,
+      inventoryItemId: item?.inventoryItemId ?? itemDraft?.inventoryItemId,
     };
     if (isEdit) {
       execUpdate({ id: item.id, ...payload });
@@ -154,6 +164,21 @@ export function PantryForm({ item }: PantryFormProps) {
             rows={3}
           />
         </Field>
+
+        {isEdit && (
+          <Field label="Status">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full h-9 rounded-lg border border-base-200 bg-white px-3 text-sm text-base-800 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500"
+            >
+              <option value="in_stock">In Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+              <option value="consumed">Consumed</option>
+              <option value="discarded">Discarded</option>
+            </select>
+          </Field>
+        )}
       </div>
 
       <div className="flex items-center gap-3 pt-2 border-t border-base-100">

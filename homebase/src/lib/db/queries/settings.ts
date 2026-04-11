@@ -1,11 +1,46 @@
 import { prisma } from "@/lib/db/client";
 
+function getEnvBackedDefaults() {
+  return {
+    appLocale: "en",
+    llmProvider: process.env.LLM_PROVIDER ?? "openrouter",
+    textModel: process.env.DEFAULT_TEXT_MODEL ?? "google/gemini-2.0-flash-001",
+    visionModel: process.env.DEFAULT_VISION_MODEL ?? "google/gemini-2.0-flash-001",
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+    ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.2",
+  };
+}
+
+async function readStoredLocale() {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ appLocale: string | null }>>`
+      SELECT "appLocale"
+      FROM "AppConfig"
+      WHERE "id" = 'singleton'
+      LIMIT 1
+    `;
+    return rows[0]?.appLocale ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getAppConfig() {
-  return prisma.appConfig.upsert({
+  const envDefaults = getEnvBackedDefaults();
+  const { appLocale, ...clientDefaults } = envDefaults;
+  const config = await prisma.appConfig.upsert({
     where: { id: "singleton" },
-    create: {},
+    create: clientDefaults,
     update: {},
   });
+  const storedLocale = await readStoredLocale();
+
+  // Respect the stored DB config — no silent overrides.
+  // Env vars only apply at initial creation time.
+  return {
+    ...config,
+    appLocale: storedLocale ?? appLocale,
+  };
 }
 
 export async function getAllAgentConfigs() {

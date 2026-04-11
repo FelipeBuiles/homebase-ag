@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChefHat, ExternalLink, Pencil, Trash2, MoreHorizontal, Clock, Loader2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +17,21 @@ interface RecipeRowProps {
   recipe: {
     id: string;
     title: string;
+    imageUrl?: string | null;
     sourceUrl?: string | null;
     prepMinutes?: number | null;
     cookMinutes?: number | null;
     parseStatus: string;
     _count: { ingredients: number };
+    coverage?: {
+      ingredientCount: number;
+      coveredIngredientCount: number;
+      partialIngredientCount: number;
+      missingIngredientCount: number;
+      expiringMatchCount: number;
+      cookNow: boolean;
+      usesExpiring: boolean;
+    } | null;
   };
   onDelete: (id: string) => void;
 }
@@ -35,16 +46,55 @@ export function RecipeRow({ recipe, onDelete }: RecipeRowProps) {
   const router = useRouter();
   const totalMinutes = (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0);
   const status = statusBadge[recipe.parseStatus] ?? statusBadge.pending;
+  const coverage = recipe.coverage;
 
   return (
-    <div className="flex items-center gap-3 h-14 px-4 hover:bg-base-50 group">
-      <div className="h-8 w-8 rounded bg-base-100 flex items-center justify-center shrink-0">
-        <ChefHat className="h-4 w-4 text-base-400" />
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-base-50 group">
+      <div className="relative h-12 w-12 rounded-lg overflow-hidden bg-base-100 flex items-center justify-center shrink-0 border border-base-200">
+        {recipe.imageUrl ? (
+          <Image
+            src={recipe.imageUrl}
+            alt={recipe.title}
+            fill
+            sizes="48px"
+            className="object-cover"
+          />
+        ) : (
+          <ChefHat className="h-4 w-4 text-base-400" />
+        )}
       </div>
 
       <Link href={`/recipes/${recipe.id}`} className="flex-1 min-w-0">
         <p className="text-sm font-medium text-base-800 truncate">{recipe.title}</p>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex items-center gap-x-2 gap-y-1 mt-1 flex-wrap">
+          {coverage?.ingredientCount ? (
+            <>
+              {coverage.cookNow ? (
+                <Badge variant="success" className="text-[10px] px-1.5 py-0">
+                  Cook now
+                </Badge>
+              ) : (
+                <span className="text-xs text-base-500">
+                  {coverage.coveredIngredientCount + coverage.partialIngredientCount}/{coverage.ingredientCount} matched
+                </span>
+              )}
+              {coverage.partialIngredientCount > 0 && (
+                <span className="text-xs text-warning">
+                  {coverage.partialIngredientCount} partial
+                </span>
+              )}
+              {coverage.usesExpiring && (
+                <span className="text-xs text-warning">
+                  Uses {coverage.expiringMatchCount} expiring
+                </span>
+              )}
+              {coverage.missingIngredientCount > 0 && (
+                <span className="text-xs text-base-400">
+                  Missing {coverage.missingIngredientCount}
+                </span>
+              )}
+            </>
+          ) : null}
           {totalMinutes > 0 && (
             <span className="flex items-center gap-1 text-xs text-base-400">
               <Clock className="h-3 w-3" />
