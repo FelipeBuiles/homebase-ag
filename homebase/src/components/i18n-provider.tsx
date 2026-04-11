@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { getMessages, type SupportedLocale } from "@/lib/i18n/messages";
+import { getMessages, type MessageKey, type SupportedLocale } from "@/lib/i18n/messages";
 
 type I18nContextValue = {
   locale: SupportedLocale;
-  t: (key: string, vars?: Record<string, string | number>) => string;
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
